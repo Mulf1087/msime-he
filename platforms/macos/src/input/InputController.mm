@@ -4765,7 +4765,13 @@ static NSUInteger MSIMEAdaptiveHighlightIndex(NSArray<NSDictionary *> *entries, 
     NSString *profile = [NSString stringWithUTF8String:msime::mac::ShuangpinSchemaTitle(_appearance.shuangpinProfile.UTF8String ?: "")];
     if ([profile hasSuffix:@"双拼"] && profile.length > 2) profile = [profile substringToIndex:profile.length - 2];
     NSArray<NSString *> *schemes = MSIMEInputSchemeNames();
-    NSArray<NSString *> *schemeTitles = @[@"全拼", [NSString stringWithFormat:@"双拼（%@）", profile], [_appearance.wubiProfile isEqual:@"wubi98"] ? @"五笔 98" : @"五笔 86", @"日语", @"韩语", @"粤拼", @"注音", @"越南语", @"藏文", @"笔画"];
+    // 按稳定方案名取标题，新增方案不能越过一份独立维护的旧名称数组。
+    NSDictionary<NSString *, NSString *> *schemeTitles = @{
+        @"quanpin":@"全拼", @"shuangpin":[NSString stringWithFormat:@"双拼（%@）", profile],
+        @"wubi":[_appearance.wubiProfile isEqual:@"wubi98"] ? @"五笔 98" : @"五笔 86",
+        @"japanese":@"日语", @"korean":@"韩语", @"cantonese":@"粤拼", @"zhuyin":@"注音",
+        @"vietnamese":@"越南语", @"tibetan":@"藏文", @"stroke":@"笔画", @"xiaohe_yinxing":@"小鹤音形"
+    };
     NSMenu *schemeMenu = [[NSMenu alloc] initWithTitle:@"输入方案"];
     schemeMenu.autoenablesItems = NO;
     // A scheme that cannot run here (Cantonese, Zhuyin or Stroke without its dictionary) is not offered, and the check is on the scheme actually running, so a preference naming one shows the scheme it fell back to.
@@ -4773,11 +4779,12 @@ static NSUInteger MSIMEAdaptiveHighlightIndex(NSArray<NSDictionary *> *entries, 
     NSString *effectiveScheme = MSIMEEffectiveInputScheme(_appearance.inputScheme, _appearance.lastChineseScheme, hostOptions);
     for (NSUInteger index = 0; index < schemes.count; ++index) {
         if (!MSIMEInputSchemeAvailable(schemes[index], hostOptions)) continue;
-        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:schemeTitles[index] action:@selector(selectInputScheme:) keyEquivalent:@""];
+        NSString *title = schemeTitles[schemes[index]] ?: schemes[index];
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(selectInputScheme:) keyEquivalent:@""];
         item.target = self;
         item.representedObject = schemes[index];
         item.state = [effectiveScheme isEqual:schemes[index]] ? NSControlStateValueOn : NSControlStateValueOff;
-        if (item.state == NSControlStateValueOn && currentTitle) *currentTitle = schemeTitles[index];
+        if (item.state == NSControlStateValueOn && currentTitle) *currentTitle = title;
         [schemeMenu addItem:item];
     }
     return schemeMenu;
@@ -6391,6 +6398,14 @@ static NSDictionary *MSIMESessionOptions(NSDictionary *runtimeOptions, NSString 
                                         NSString *helpcodeResources = nil) {
     if (![runtimeOptions isKindOfClass:NSDictionary.class]) return nil;
     NSMutableDictionary *requested = [runtimeOptions mutableCopy];
+    // 共享文档也是首个引擎会话的权威来源，不能先按运行配置里的旧方案接收按键。
+    // 否则界面已经显示新方案，核心仍会一直使用旧方案，直到空闲时后台轮询成功。
+    id directory = runtimeOptions[@"preferences_directory"];
+    if ([directory isKindOfClass:NSString.class] && [directory isAbsolutePath]) {
+        NSDictionary *snapshot = [MSIMEClientSession loadPreferencesInDirectory:directory error:nil];
+        id preferences = snapshot[@"preferences"];
+        if ([preferences isKindOfClass:NSDictionary.class]) requested[@"preferences"] = preferences;
+    }
     // This host draws view.phrase_prefix, so a phrase being assembled out of several selections
     // stays in the composition instead of arriving in the document one piece at a time.
     requested[@"phrase_preedit"] = @YES;

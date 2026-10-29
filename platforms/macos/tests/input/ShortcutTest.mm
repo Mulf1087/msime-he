@@ -2568,6 +2568,38 @@ static void TestFullWidth(NSUserDefaults *defaults, MSIMEAppearancePreferences *
 // render differently, so a behaviour this one draws has to be requested rather than written into it -
 // and if that request is ever dropped, nothing else here notices: a phrase being assembled would go
 // back to arriving in the document one piece at a time, which looks like ordinary typing.
+@interface XiaoheMenuController : MSIMEInputController
+@property(nonatomic, copy) NSDictionary *probeOptions;
+@end
+@implementation XiaoheMenuController
+- (NSDictionary *)inputSchemeHostOptions { return self.probeOptions; }
+@end
+
+static void TestXiaoheSchemeMenu() {
+    NSString *root = [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+    assert([NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:nil]);
+    assert([[@"synthetic table availability fixture" dataUsingEncoding:NSUTF8StringEncoding]
+        writeToFile:[root stringByAppendingPathComponent:@"xiaohe-yinxing.db"] atomically:YES]);
+    NSString *suite = [@"msime.xiaohe-menu." stringByAppendingString:NSUUID.UUID.UUIDString];
+    NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:suite];
+    MSIMEAppearancePreferences *appearance = [[MSIMEAppearancePreferences alloc] initWithDefaults:defaults];
+    XiaoheMenuController *controller = [XiaoheMenuController alloc];
+    controller.probeOptions = @{@"user_data":root};
+    [controller setValue:appearance forKey:@"appearance"];
+    // 码表存在时，任何当前方案都要能完整构建菜单，不能让新增项越过旧名称数组。
+    for (NSString *scheme in @[@"quanpin", @"shuangpin", @"xiaohe_yinxing"]) {
+        [appearance applySharedInputPreferences:@{@"scheme":scheme}];
+        NSString *title = nil;
+        NSMenu *menu = [controller inputSchemeMenuWithCurrentTitle:&title];
+        NSMenuItem *item = [menu itemWithTitle:@"小鹤音形"];
+        assert(item && [item.representedObject isEqual:@"xiaohe_yinxing"]);
+        assert(item.state == ([scheme isEqual:@"xiaohe_yinxing"] ? NSControlStateValueOn : NSControlStateValueOff));
+        if ([scheme isEqual:@"xiaohe_yinxing"]) assert([title isEqual:@"小鹤音形"]);
+    }
+    MSIMERemoveTestPreferenceSuite(defaults, suite);
+    assert([NSFileManager.defaultManager removeItemAtPath:root error:nil]);
+}
+
 static void TestSessionOptions() {
     assert(!MSIMESessionOptions(nil, nil));
     assert(!MSIMESessionOptions((NSDictionary *)@"not a dictionary", @"/synthetic/sound-packs"));
@@ -2584,6 +2616,33 @@ static void TestSessionOptions() {
     // 不修改调用方的字典，原配置仍供其他读取方使用。
     assert(!file[@"phrase_preedit"]);
     assert(!file[@"korean_romaja"]);
+
+    // 首个会话也必须使用共享文档，而不能先用运行配置中的旧方案等待后台轮询。
+    NSString *state = [NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+    assert([NSFileManager.defaultManager createDirectoryAtPath:state withIntermediateDirectories:YES attributes:nil error:nil]);
+    NSString *userData = [state stringByAppendingPathComponent:@"user"];
+    assert([NSFileManager.defaultManager createDirectoryAtPath:userData withIntermediateDirectories:NO attributes:nil error:nil]);
+    sqlite3 *table = nullptr;
+    assert(sqlite3_open([[userData stringByAppendingPathComponent:@"xiaohe-yinxing.db"] fileSystemRepresentation], &table) == SQLITE_OK);
+    assert(sqlite3_exec(table, "PRAGMA user_version=1; CREATE TABLE entries(code TEXT,rank INTEGER,text TEXT); INSERT INTO entries VALUES('ab',1,'测试');", nullptr, nullptr, nullptr) == SQLITE_OK);
+    assert(sqlite3_close(table) == SQLITE_OK);
+    NSError *stateError = nil;
+    NSDictionary *initial = [MSIMEClientSession loadPreferencesInDirectory:state error:&stateError];
+    assert(initial && !stateError);
+    NSMutableDictionary *savedPreferences = [initial[@"preferences"] mutableCopy];
+    savedPreferences[@"scheme"] = @"xiaohe_yinxing";
+    savedPreferences[@"last_chinese_scheme"] = @"xiaohe_yinxing";
+    NSDictionary *saved = [MSIMEClientSession savePreferencesInDirectory:state
+        expectedRevision:[initial[@"revision"] unsignedLongLongValue]
+        snapshot:@{@"format_version":@1, @"revision":initial[@"revision"], @"preferences":savedPreferences}
+        error:&stateError];
+    assert(saved && !stateError);
+    NSMutableDictionary *oldOptions = [file mutableCopy];
+    oldOptions[@"preferences_directory"] = state;
+    NSDictionary *freshOptions = MSIMESessionOptions(oldOptions, nil);
+    assert([freshOptions[@"preferences"][@"scheme"] isEqual:@"xiaohe_yinxing"]);
+    assert([oldOptions[@"preferences"][@"scheme"] isEqual:@"quanpin"]);
+    assert([NSFileManager.defaultManager removeItemAtPath:state error:nil]);
 
     // An options file that already says something about it does not get to say no: this host draws
     // the field, and a stale file predates the behaviour entirely.
@@ -13217,6 +13276,14 @@ int main(int argc, char **argv) {
     assert(MSIMEShouldRegisterInputSource(2, registerArguments));
     @autoreleasepool {
         [NSApplication sharedApplication];
+        if (argc == 2 && std::string(argv[1]) == "--session-options") {
+            TestSessionOptions();
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--xiaohe-menu") {
+            TestXiaoheSchemeMenu();
+            return 0;
+        }
         if (argc == 2 && std::string(argv[1]) == "--cross-commit-spacing") {
             TestCrossCommitSpacing();
             TestCrossCommitSpacingReentrancy();
