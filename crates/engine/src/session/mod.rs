@@ -21,6 +21,7 @@ mod plugin_commands;
 mod prediction;
 #[cfg(test)]
 mod tests;
+mod xiaohe;
 
 use std::sync::Arc;
 

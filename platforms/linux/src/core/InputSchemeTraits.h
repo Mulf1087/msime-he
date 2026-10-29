@@ -13,6 +13,7 @@ constexpr int Zhuyin = 6;
 constexpr int Vietnamese = 7;
 constexpr int Tibetan = 8;
 constexpr int Stroke = 9;
+constexpr int XiaoheYinxing = 10;
 
 // ---- Host-only traits ----
 
@@ -37,10 +38,10 @@ constexpr bool EditsSentence(int scheme) { return scheme == Quanpin || scheme ==
 // ---- Engine traits the view does not publish; each mirrors the `SchemeType` predicate of the same name ----
 
 // `is_chinese`: a Chinese scheme, the one a switch to a non-Chinese scheme remembers as `last_chinese_scheme`.
-constexpr bool IsChinese(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Cantonese || scheme == Zhuyin || scheme == Stroke; }
+constexpr bool IsChinese(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Cantonese || scheme == Zhuyin || scheme == Stroke || scheme == XiaoheYinxing; }
 
 // `script_conversion_applies`：繁体输出转换会改写这个方案的文字。粤拼和注音本来就写繁体字，笔画候选按 msime-stroke.db 里存的字形原样取用，假名、谚文、越南文和藏文都不是中文。
-constexpr bool ScriptConversionApplies(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi; }
+constexpr bool ScriptConversionApplies(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == XiaoheYinxing; }
 
 // `learns_into_main_dictionary`: a candidate may be removed from, or pinned in, the user dictionary of the main Chinese lexicon.
 constexpr bool LearnsIntoMainDictionary(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi; }
@@ -49,20 +50,20 @@ constexpr bool LearnsIntoMainDictionary(int scheme) { return scheme == Quanpin |
 constexpr bool OpensLocalModes(int scheme) { return scheme == Quanpin || scheme == Shuangpin; }
 
 // `opens_table_modes`: 没有组字时，Shift+K、Shift+C 和 `/`、`@` 键打开快捷短语、拆字、指令和名单模式，Shift+U、T、Y、S 打开 Unicode、日期时间、临时英文和符号模式。其他方案里，视图在本地模式之外列出的符号是方案自己的拼写。
-constexpr bool OpensTableModes(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi; }
+constexpr bool OpensTableModes(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == XiaoheYinxing; }
 
 // `commits_on_blur`: leaving the composition (focus loss, a scheme or mode switch, a navigation key handed to the application) writes it out instead of discarding it.
-constexpr bool CommitsOnBlur(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan; }
+constexpr bool CommitsOnBlur(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == XiaoheYinxing; }
 
 // `locks_caret`：光标始终停在组字末尾，没有可供 Ctrl+退格、Ctrl+左右和 Shift+左右编辑的分段。
-constexpr bool LocksCaret(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan; }
+constexpr bool LocksCaret(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == XiaoheYinxing; }
 
 // `uses_chinese_punctuation`：标点走中文标点表。韩文、越南文和藏文不论中文标点开关怎么设都写半角 ASCII 标点。
-constexpr bool UsesChinesePunctuation(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese || scheme == Zhuyin || scheme == Stroke; }
+constexpr bool UsesChinesePunctuation(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese || scheme == Zhuyin || scheme == Stroke || scheme == XiaoheYinxing; }
 
 // `host_smart_punctuation`: the reversible smart punctuation gestures (space-to-ASCII, repeat-to-Chinese) and the paired-mark helpers may run.
 constexpr bool HostSmartPunctuation(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Cantonese || scheme == Stroke; }
 
 // `widens_full_width`: commits and direct characters are widened when the full-width switch is on.
-constexpr bool WidensFullWidth(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese || scheme == Zhuyin || scheme == Stroke; }
+constexpr bool WidensFullWidth(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese || scheme == Zhuyin || scheme == Stroke || scheme == XiaoheYinxing; }
 } // namespace msime::linux_host::scheme

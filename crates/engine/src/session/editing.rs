@@ -364,7 +364,8 @@ impl InputSession {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => Vec::new(),
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => Vec::new(),
         }
     }
 

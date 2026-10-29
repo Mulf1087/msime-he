@@ -19,6 +19,7 @@ constexpr int Zhuyin = 6;
 constexpr int Vietnamese = 7;
 constexpr int Tibetan = 8;
 constexpr int Stroke = 9;
+constexpr int XiaoheYinxing = 10;
 
 // ---- Host-only traits ----
 
@@ -69,11 +70,11 @@ constexpr bool ApostropheIsPunctuationWhileComposing(int scheme) { return scheme
 constexpr bool IsChinese(int scheme)
 {
     return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Cantonese || scheme == Zhuyin ||
-           scheme == Stroke;
+           scheme == Stroke || scheme == XiaoheYinxing;
 }
 
 // `script_conversion_applies`: commits are Simplified and the Traditional output switch converts them. Cantonese, Zhuyin and Stroke write their characters as stored, so converting them again would be wrong; the view's own `script_conversion` also turns off in the Unicode and temporary Japanese modes.
-constexpr bool ScriptConversionApplies(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi; }
+constexpr bool ScriptConversionApplies(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == XiaoheYinxing; }
 
 // `outputs_traditional_natively`: the scheme's dictionary is Traditional, whatever the Traditional output switch says.
 constexpr bool OutputsTraditionalNatively(int scheme) { return scheme == Cantonese || scheme == Zhuyin || scheme == Stroke; }
@@ -81,20 +82,20 @@ constexpr bool OutputsTraditionalNatively(int scheme) { return scheme == Cantone
 // `commits_on_blur`: leaving the composition (focus loss, a scheme or mode switch, a navigation key handed to the application) writes it out instead of discarding it.
 constexpr bool CommitsOnBlur(int scheme)
 {
-    return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan;
+    return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == XiaoheYinxing;
 }
 
 // `locks_caret`：光标停在组字末尾，Ctrl+退格、Ctrl+左右和 Shift+左右都没有可编辑的分段；TIP 在这些方案里不把 Shift+左右当作分段键，仍按宿主组字的按键规则处理。
 constexpr bool LocksCaret(int scheme)
 {
-    return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan;
+    return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == XiaoheYinxing;
 }
 
 // `uses_chinese_punctuation`: 标点走中文标点表。韩文、越南文和藏文不论中文标点开关怎样都写半角 ASCII 标点。
 constexpr bool UsesChinesePunctuation(int scheme)
 {
     return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese ||
-           scheme == Zhuyin || scheme == Stroke;
+           scheme == Zhuyin || scheme == Stroke || scheme == XiaoheYinxing;
 }
 
 // `host_smart_punctuation`: the reversible smart punctuation gestures (space-to-ASCII, repeat-to-Chinese) may run.
@@ -107,7 +108,7 @@ constexpr bool HostSmartPunctuation(int scheme)
 constexpr bool WidensFullWidth(int scheme)
 {
     return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese ||
-           scheme == Zhuyin || scheme == Stroke;
+           scheme == Zhuyin || scheme == Stroke || scheme == XiaoheYinxing;
 }
 
 // `shows_glosses`: candidates may carry translation glosses.
@@ -120,7 +121,7 @@ constexpr bool DetectsUrls(int scheme) { return scheme == Quanpin || scheme == S
 constexpr bool OpensLocalModes(int scheme) { return scheme == Quanpin || scheme == Shuangpin; }
 
 // `opens_table_modes`: Shift+K and the `/` and `@` keys open the quick phrase, command and mention modes while nothing is composed (and Shift+C, U, T, Y, S the modes whose input is not the scheme's spelling), so the Server sends the command and mention flags of LocalModeTriggersChanged on only here. In every other scheme the symbols a view lists outside a local mode are the scheme's own spelling.
-constexpr bool OpensTableModes(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi; }
+constexpr bool OpensTableModes(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == XiaoheYinxing; }
 
 // ---- The input mode the Server tells the TIP about ----
 
@@ -299,8 +300,11 @@ constexpr OfferedSchemes edition_schemes()
 {
     constexpr const char *names[] = {MSIME_EDITION_INPUT_SCHEMES};
     OfferedSchemes result;
-    for (const char *name : names)
-        result.offered[scheme_from_name(name)] = true;
+    for (const char *name : names) {
+        // 共享版本表允许包含其它平台专属方案；本宿主只提供自己认识的方案。
+        const int scheme = scheme_from_name(name);
+        if (scheme >= Quanpin && scheme <= Stroke) result.offered[scheme] = true;
+    }
     result.fallback = scheme_from_name(MSIME_EDITION_DEFAULT_SCHEME);
     return result;
 }

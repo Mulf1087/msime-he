@@ -3107,6 +3107,10 @@ pub unsafe extern "C" fn msime_client_save_preferences(
                 }
                 other => other.to_string(),
             })?;
+        crate::settings_dictionary::validate_xiaohe_activation(
+            std::path::Path::new(&directory),
+            preferences.scheme,
+        )?;
         let store = PreferencesStore::new(directory);
         let saved = store
             .save(expected_revision, preferences)

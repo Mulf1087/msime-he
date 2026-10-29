@@ -11,8 +11,12 @@ pub extern "C" fn msime_client_set_candidate_page_size(handle: u64, size: u8) ->
         if !(1..=msime_client_core::preferences::MAX_CANDIDATE_PAGE_SIZE).contains(&size) {
             return Err("candidate page size must be between 1 and 10".into());
         }
-        let applied = host_page_size(size);
         with_session(handle, |session| {
+            let applied = if session.runtime.view().scheme == 10 {
+                5
+            } else {
+                host_page_size(size)
+            };
             if session.runtime.is_idle() {
                 session
                     .runtime
@@ -138,6 +142,7 @@ fn engine_input_scheme(code: u8) -> Option<InputScheme> {
         InputScheme::Vietnamese,
         InputScheme::Tibetan,
         InputScheme::Stroke,
+        InputScheme::XiaoheYinxing,
     ]
     .into_iter()
     .find(|scheme| crate::scheme_code(*scheme) == code)
@@ -181,6 +186,7 @@ pub extern "C" fn msime_client_language_cycle(
             5 => Some(ChineseScheme::Cantonese),
             6 => Some(ChineseScheme::Zhuyin),
             9 => Some(ChineseScheme::Stroke),
+            10 => Some(ChineseScheme::XiaoheYinxing),
             _ => return Err("invalid_language_cycle_last_chinese_scheme".into()),
         };
         let state = LanguageCycleState {

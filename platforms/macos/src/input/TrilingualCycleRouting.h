@@ -30,8 +30,8 @@ static inline int8_t LastChineseSchemeCode(const char *scheme)
     if (scheme == nullptr)
         return -1;
     NSString *name = @(scheme);
-    NSArray<NSString *> *chinese = @[ @"quanpin", @"shuangpin", @"wubi", @"cantonese", @"zhuyin", @"stroke" ];
-    NSArray<NSNumber *> *codes = @[ @0, @1, @2, @5, @6, @9 ];
+    NSArray<NSString *> *chinese = @[ @"quanpin", @"shuangpin", @"wubi", @"cantonese", @"zhuyin", @"stroke", @"xiaohe_yinxing" ];
+    NSArray<NSNumber *> *codes = @[ @0, @1, @2, @5, @6, @9, @10 ];
     const NSUInteger index = [chinese indexOfObject:name];
     return index == NSNotFound ? -1 : codes[index].charValue;
 }

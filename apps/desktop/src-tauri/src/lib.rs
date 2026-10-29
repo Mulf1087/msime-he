@@ -1763,6 +1763,11 @@ async fn save_preferences_impl(
     tauri::async_runtime::spawn_blocking(move || {
         #[cfg(any(target_os = "ios", target_os = "linux"))]
         let previous = store.load().map_err(CommandError::from)?;
+        msime_host_api::settings_dictionary::validate_xiaohe_activation(
+            store.directory(),
+            preferences.scheme,
+        )
+        .map_err(|code| CommandError { code })?;
         let snapshot = store
             .save(expected_revision, preferences)
             .map_err(CommandError::from)?;

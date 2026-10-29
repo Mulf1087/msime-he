@@ -10,6 +10,40 @@ use msime_client_services::dictionary::import::{
 use msime_client_services::dictionary::is_han_character;
 use serde_json::{json, Value};
 
+/// 保存前检查音形方案依赖；验证失败时调用方尚未写入偏好，原活动方案保留。
+pub fn validate_xiaohe_activation(
+    directory: &std::path::Path,
+    scheme: crate::InputScheme,
+) -> Result<(), &'static str> {
+    if scheme != crate::InputScheme::XiaoheYinxing {
+        return Ok(());
+    }
+    let error = "xiaohe_dictionary_unavailable";
+    let options_path = directory.join("runtime-options.json");
+    let user_root = match std::fs::File::open(options_path) {
+        Ok(file) => {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            file.take(crate::HOST_OPTIONS_DOCUMENT_LIMIT as u64 + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|_| error)?;
+            if bytes.len() > crate::HOST_OPTIONS_DOCUMENT_LIMIT {
+                return Err(error);
+            }
+            let options: Value = serde_json::from_slice(&bytes).map_err(|_| error)?;
+            std::path::PathBuf::from(options["user_data"].as_str().ok_or(error)?)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => directory.join("user"),
+        Err(_) => return Err(error),
+    };
+    if !user_root.is_absolute() {
+        return Err(error);
+    }
+    msime_engine::xiaohe::XiaoheTable::open(&user_root.join("xiaohe-yinxing.db"))
+        .map_err(|_| error)?;
+    Ok(())
+}
+
 /// The largest file text the page imports. The page refuses files over 32 MiB (`MAX_DICTIONARY_FILE_BYTES` in `packages/ui/src/dictionary/dictionary-file.ts`) before reading them, and a file that size decodes to at most 48 MiB of UTF-8, since a two-byte GBK or UTF-16 character becomes three; this is that bound, so a file the page accepted is never refused here. At 60 KiB a request, text this size is at least 820 requests, and more for a file of short lines, since a request also carries at most `import::MAX_ENTRIES` rows. That takes longer than the 30 seconds input sessions stay released, so every request renews the release before it goes: the lease through `QuiescedHosts::run` on Linux and macOS, the Server's DictionaryQuiesce on Windows.
 pub const MAX_IMPORT_TEXT_BYTES: usize = 3 * 16 * 1024 * 1024;
 
@@ -361,6 +395,38 @@ pub fn request(
     action: &Value,
     announce: impl FnMut(),
 ) -> Result<Value, &'static str> {
+    if matches!(
+        action["operation"].as_str(),
+        Some("xiaohe_status" | "xiaohe_import")
+    ) {
+        let root = options["user_data"]
+            .as_str()
+            .ok_or("dictionary_unavailable")?;
+        let root = std::path::Path::new(root);
+        if action["operation"] == "xiaohe_status" {
+            let path = root.join("xiaohe-yinxing.db");
+            if !path.exists() {
+                return Ok(json!({"installed":false,"count":0}));
+            }
+            let table = msime_engine::xiaohe::XiaoheTable::open(&path)
+                .map_err(|_| "dictionary_unavailable")?;
+            return Ok(json!({"installed":true,"count":table.count()}));
+        }
+        let text = action["text"]
+            .as_str()
+            .ok_or("dictionary_import_rejected")?;
+        let mut hosts = msime_client_services::dictionary::quiesce::QuiescedHosts::new(
+            Some(root.to_str().ok_or("dictionary_unavailable")?),
+            announce,
+        );
+        return hosts
+            .run(|| {
+                msime_engine::xiaohe::import_tsv(root, text)
+                    .map(|count| json!({"installed":true,"count":count}))
+                    .map_err(|_| "dictionary_import_rejected".to_owned())
+            })
+            .map_err(|_| "dictionary_import_rejected");
+    }
     let host = |bytes: &[u8]| crate::dictionary_request_json(bytes);
     #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
     let result = {

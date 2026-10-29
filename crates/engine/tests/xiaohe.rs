@@ -1,0 +1,153 @@
+use msime_engine::xiaohe::XiaoheTable;
+use rusqlite::Connection;
+
+#[test]
+fn xiaohe_has_its_own_scheme_and_fixed_order_traits() {
+    let scheme = msime_engine::SchemeType::from_u8(10).expect("independent scheme");
+    assert_eq!(scheme.name(), "xiaohe_yinxing");
+    assert!(scheme.is_chinese());
+    assert!(scheme.selection_completes());
+    assert!(!scheme.is_pinyin());
+    assert!(!scheme.learns_into_main_dictionary());
+    assert!(!scheme.allows_english_emoji_mixing());
+    assert!(!scheme.reranks_with_sentence_model());
+}
+
+#[test]
+fn fixed_codes_keep_reference_order_and_require_complete_code() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("table.db");
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(
+            "PRAGMA user_version=1; CREATE TABLE entries(code TEXT, rank INTEGER, text TEXT);
+         INSERT INTO entries VALUES('ab',2,'乙'),('ab',1,'甲'),('abc',1,'丙'),('z',1,'丁');",
+        )
+        .unwrap();
+    let table = XiaoheTable::open(&path).unwrap();
+    assert_eq!(
+        table
+            .query("ab")
+            .unwrap()
+            .iter()
+            .map(|x| x.word.as_str())
+            .collect::<Vec<_>>(),
+        ["甲", "乙"]
+    );
+    assert!(table.query("a").unwrap().is_empty());
+    assert_eq!(table.query("z").unwrap()[0].word, "丁");
+    assert!(table.query("abcde").unwrap().is_empty());
+}
+
+#[test]
+fn missing_and_unknown_version_tables_are_rejected() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("table.db");
+    assert!(XiaoheTable::open(&path).is_err());
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(
+            "PRAGMA user_version=2; CREATE TABLE entries(code TEXT,rank INTEGER,text TEXT)",
+        )
+        .unwrap();
+    assert!(XiaoheTable::open(&path).is_err());
+}
+
+fn session() -> (tempfile::TempDir, msime_engine::Session) {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("helpcodes")).unwrap();
+    std::fs::write(root.path().join("helpcodes/helpcode.txt"), "甲=ab\n").unwrap();
+    Connection::open(root.path().join("xiaohe-yinxing.db"))
+        .unwrap()
+        .execute_batch(
+            "PRAGMA user_version=1; CREATE TABLE entries(code TEXT,rank INTEGER,text TEXT);
+         INSERT INTO entries VALUES('a',1,'甲'),('ab',1,'乙'),('ab',2,'丙'),
+         ('abcd',1,'丁'),('abcd',2,'戊'),('xyzz',1,'己'),(';q',1,'！');",
+        )
+        .unwrap();
+    let paths = msime_engine::RuntimePaths {
+        resources: root.path().into(),
+        user_data: root.path().into(),
+        cache: root.path().into(),
+        dictionaries: root.path().into(),
+    };
+    let mut options = msime_engine::SessionOptions::new(paths);
+    options.scheme = msime_engine::SchemeType::XiaoheYinxing;
+    options.enabled_schemes = msime_engine::SchemeSet::of(&[options.scheme]);
+    let session = msime_engine::Session::new(options).unwrap();
+    (root, session)
+}
+
+#[test]
+fn xiaohe_selects_second_and_consumes_the_whole_code() {
+    let (_root, mut s) = session();
+    for c in b"ab" {
+        assert!(s.character(*c, false).handled);
+    }
+    assert_eq!(s.snapshot().candidates[0].word, "乙");
+    assert_eq!(s.character(b';', false).commit.as_deref(), Some("丙"));
+    assert!(s.snapshot().preedit.is_empty());
+}
+
+#[test]
+fn xiaohe_unique_four_code_commits_and_fifth_key_keeps_its_new_code() {
+    let (_root, mut s) = session();
+    for c in b"xyz" {
+        assert!(s.character(*c, false).commit.is_none());
+    }
+    assert_eq!(s.character(b'z', false).commit.as_deref(), Some("己"));
+    for c in b"abcd" {
+        assert!(s.character(*c, false).commit.is_none());
+    }
+    assert_eq!(s.character(b'a', false).commit.as_deref(), Some("丁"));
+    assert_eq!(s.snapshot().preedit, "a");
+    assert_eq!(s.snapshot().candidates[0].word, "甲");
+}
+
+#[test]
+fn xiaohe_import_replaces_atomically_and_keeps_old_table_on_failure() {
+    let root = tempfile::tempdir().unwrap();
+    assert_eq!(
+        msime_engine::xiaohe::import_tsv(
+            root.path(),
+            "# msime-xiaohe-yinxing-v1\nab\t1\t甲\nab\t2\t乙\n"
+        )
+        .unwrap(),
+        2
+    );
+    assert!(msime_engine::xiaohe::import_tsv(
+        root.path(),
+        "# msime-xiaohe-yinxing-v1\nab\t1\t丙\nab\t1\t丁\n"
+    )
+    .is_err());
+    let table = XiaoheTable::open(&root.path().join("xiaohe-yinxing.db")).unwrap();
+    assert_eq!(table.query("ab").unwrap()[0].word, "甲");
+}
+
+#[test]
+fn xiaohe_empty_code_clears_on_next_key_and_tab_cancels() {
+    let (_root, mut s) = session();
+    for c in b"zzzz" {
+        assert!(s.character(*c, false).commit.is_none());
+    }
+    assert_eq!(s.character(b'a', false).commit, None);
+    assert_eq!(s.snapshot().preedit, "a");
+    assert!(s.snapshot().spelling_symbols.contains('\t'));
+    assert!(s.character(b'\t', false).handled);
+    assert!(s.snapshot().preedit.is_empty());
+    assert!(s.character(b';', false).handled);
+    assert_eq!(s.character(b'q', false).commit.as_deref(), Some("！"));
+}
+
+#[test]
+fn xiaohe_apostrophe_after_four_code_matches_rime_final_key() {
+    let (_root, mut s) = session();
+    for c in b"abcd" {
+        s.character(*c, false);
+    }
+    assert!(s.character(b'\'', false).commit.is_none());
+    assert_eq!(s.snapshot().preedit, "abcd'");
+    assert!(s.snapshot().candidates.is_empty());
+    assert!(s.character(b'a', false).commit.is_none());
+    assert_eq!(s.snapshot().preedit, "a");
+}

@@ -28,6 +28,8 @@ use crate::types::{
 use crate::wubi::provider::WubiProvider;
 
 pub struct ProviderRegistry {
+    xiaohe_path: PathBuf,
+    xiaohe: Option<crate::xiaohe::XiaoheTable>,
     /// 会话允许运行的方案；不在其中的方案没有 provider，`activate` 拒绝它们。
     enabled: SchemeSet,
     /// 全拼或五笔在 `enabled` 里时才有：五笔混拼的拼音行由它查出。
@@ -87,6 +89,8 @@ impl ProviderRegistry {
         let quanpin_needed =
             enabled.contains(SchemeType::Quanpin) || enabled.contains(SchemeType::Wubi);
         Self {
+            xiaohe_path: paths.user("xiaohe-yinxing.db"),
+            xiaohe: None,
             enabled,
             quanpin: quanpin_needed.then(|| QuanpinEngine::new(paths)),
             shuangpin: enabled
@@ -121,6 +125,9 @@ impl ProviderRegistry {
     pub fn activate(&mut self, scheme: SchemeType) -> Result<()> {
         if !self.enabled.contains(scheme) {
             return Err(EngineError::invalid(diagnostics::INPUT_SCHEME_NOT_ENABLED));
+        }
+        if scheme == SchemeType::XiaoheYinxing && self.xiaohe.is_none() {
+            self.xiaohe = Some(crate::xiaohe::XiaoheTable::open(&self.xiaohe_path)?);
         }
         if scheme == SchemeType::Cantonese && self.cantonese.is_none() {
             let dictionary = CantoneseDictionary::open(&self.cantonese_path)?;
@@ -195,6 +202,26 @@ impl ProviderRegistry {
         }
         let keymap = self.keymap.as_deref();
         let mut candidates = match request.scheme {
+            SchemeType::XiaoheYinxing => {
+                return self
+                    .xiaohe
+                    .as_ref()
+                    .and_then(|table| table.query(&request.raw_input).ok())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|row| {
+                        let mut item = WordItem::new(
+                            row.code.clone(),
+                            row.word,
+                            -row.rank,
+                            CandidateSource::Database,
+                            row.code,
+                        );
+                        item.scheme = SchemeType::XiaoheYinxing;
+                        item
+                    })
+                    .collect();
+            }
             SchemeType::Quanpin => match &mut self.quanpin {
                 Some(quanpin) => quanpin.query(request, keymap),
                 None => return Vec::new(),
@@ -239,7 +266,8 @@ impl ProviderRegistry {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => None,
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => None,
         }
     }
 
@@ -287,7 +315,8 @@ impl ProviderRegistry {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => {}
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => {}
         }
     }
 
@@ -320,7 +349,8 @@ impl ProviderRegistry {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => false,
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => false,
         }
     }
 
@@ -359,7 +389,8 @@ impl ProviderRegistry {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => false,
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => false,
         }
     }
 

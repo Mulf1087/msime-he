@@ -333,6 +333,15 @@ impl InputSession {
 
     /// input_session.cpp:88-245: caret insertion, dedicated English, local modes and their Shift entries, the acceptance gate, then the scheme. Handled iff the preedit changed.
     pub fn handle_character(&mut self, value: u8, shift_only: bool) -> KeyResult {
+        if self.scheme() == SchemeType::XiaoheYinxing
+            && self.local_mode == LocalInputMode::None
+            && !self.dedicated_english
+            && !shift_only
+            && (value.is_ascii_lowercase() || value == b';' || value == b'\'' || value == b'\t')
+        {
+            return self.handle_xiaohe_character(value);
+        }
+
         // 任何实际字符输入都会使“退格撤销最近引号”失效；否则引号后输入一段拼音再退格，可能误撤销更早的引号。
         self.punctuation.clear_quote_undo();
         self.exit_date_time_menu();
@@ -1423,6 +1432,9 @@ impl InputSession {
         if self.local_mode != LocalInputMode::None {
             return self.local_mode.spelling_symbols().to_owned();
         }
+        if self.scheme() == SchemeType::XiaoheYinxing {
+            return if self.has_composition() { "\';\t" } else { ";" }.to_owned();
+        }
         if self.vietnamese_rules_apply() {
             return self.engine.vietnamese_spelling_symbols().to_owned();
         }
@@ -1974,7 +1986,8 @@ impl InputSession {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => false,
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => false,
         }
     }
 

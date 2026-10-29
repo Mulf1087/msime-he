@@ -371,7 +371,8 @@ pub fn account_input_schema(scheme: InputScheme) -> Option<&'static str> {
         | InputScheme::Zhuyin
         | InputScheme::Vietnamese
         | InputScheme::Tibetan
-        | InputScheme::Stroke => None,
+        | InputScheme::Stroke
+        | InputScheme::XiaoheYinxing => None,
     }
 }
 

@@ -695,3 +695,31 @@ fn a_cell_dictionary_converted_to_text_reports_failures_by_word_order_across_bat
     assert_eq!(report["swapped"], false);
     assert_eq!(failures(&report), [(1200, "empty_key".to_owned())]);
 }
+
+#[test]
+fn xiaohe_settings_import_and_status_preserve_previous_table_on_error() {
+    let root = tempfile::tempdir().unwrap();
+    let options = serde_json::json!({"user_data":root.path()});
+    let empty = super::request(
+        &options,
+        &serde_json::json!({"operation":"xiaohe_status"}),
+        || {},
+    )
+    .unwrap();
+    assert_eq!(empty["count"], 0);
+    let imported = super::request(&options, &serde_json::json!({"operation":"xiaohe_import","text":"# msime-xiaohe-yinxing-v1\nab\t1\t甲\n"}), || {}).unwrap();
+    assert_eq!(imported["count"], 1);
+    assert!(super::request(
+        &options,
+        &serde_json::json!({"operation":"xiaohe_import","text":"invalid"}),
+        || {}
+    )
+    .is_err());
+    let status = super::request(
+        &options,
+        &serde_json::json!({"operation":"xiaohe_status"}),
+        || {},
+    )
+    .unwrap();
+    assert_eq!(status["count"], 1);
+}

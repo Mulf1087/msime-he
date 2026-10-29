@@ -467,6 +467,7 @@ fn remember_chinese_scheme(preferences: &mut Preferences) {
         InputScheme::Cantonese => ChineseScheme::Cantonese,
         InputScheme::Zhuyin => ChineseScheme::Zhuyin,
         InputScheme::Stroke => ChineseScheme::Stroke,
+        InputScheme::XiaoheYinxing => ChineseScheme::XiaoheYinxing,
         InputScheme::Japanese
         | InputScheme::Korean
         | InputScheme::Vietnamese

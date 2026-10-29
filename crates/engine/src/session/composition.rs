@@ -615,7 +615,8 @@ impl InputSession {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => Cow::Borrowed(self.raw_with_cases()),
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => Cow::Borrowed(self.raw_with_cases()),
             SchemeType::Shuangpin if self.shuangpin_preedit_uses_raw => with_trailing_separator(
                 if request.raw_segmentation.is_empty() {
                     Cow::Borrowed(&request.raw_input)
@@ -653,7 +654,8 @@ impl InputSession {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => false,
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => false,
             SchemeType::Shuangpin => {
                 let profile = self.shuangpin_profile();
                 let base = resolve_shuangpin_composition_base(request, profile);
@@ -709,7 +711,8 @@ impl InputSession {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => false,
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => false,
             SchemeType::Shuangpin => {
                 !request.end_helpcodes.is_empty()
                     || active_shuangpin_helpcode_length(request, self.shuangpin_profile()) > 0

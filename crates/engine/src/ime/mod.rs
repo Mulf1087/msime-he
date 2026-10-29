@@ -1360,7 +1360,8 @@ fn reuse_request_preedit(request: &QueryRequest, destination: &mut String) {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => &request.normalized_segmentation,
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => &request.normalized_segmentation,
         }
     };
     source.clone_into(destination);

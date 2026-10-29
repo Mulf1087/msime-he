@@ -26,12 +26,12 @@ int main() {
   assert(scheme_number("") == -1);
 
   // 越南文和藏文与日文、韩文一样是非中文输入语言；粤拼、注音和笔画是中文方案。
-  for (int number : {0, 1, 2, 5, 6, 9})
+  for (int number : {0, 1, 2, 5, 6, 9, 10})
     assert(scheme::IsChinese(number));
-  for (int number : {3, 4, 7, 8, 10, -1})
+  for (int number : {3, 4, 7, 8, 11, -1})
     assert(!scheme::IsChinese(number));
   // K、C、U、T、Y、S 和 "/"、"@" 不经过方案的拼写，五笔也打开（`opens_table_modes`）；按拼音拼写查的 E、M、J、R 和计算模式 V 只在全拼和双拼里（`opens_local_modes`）。
-  for (int number : {0, 1, 2})
+  for (int number : {0, 1, 2, 10})
     assert(scheme::OpensTableModes(number));
   for (int number : {3, 4, 5, 6, 7, 8, 9, -1})
     assert(!scheme::OpensTableModes(number));

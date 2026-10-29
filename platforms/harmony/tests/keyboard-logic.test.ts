@@ -16994,7 +16994,7 @@ group("a picked pack is copied for import only within client-core's bounds", () 
 
 group("the scheme traits answer as the Engine's SchemeType predicates", () => {
   check(
-    SchemeTraits.NAMES.length === 10 &&
+    SchemeTraits.NAMES.length === 11 &&
       SchemeTraits.fromName("tibetan") === SchemeTraits.TIBETAN &&
       SchemeTraits.fromName("stroke") === SchemeTraits.STROKE &&
       SchemeTraits.fromName("cantonese") === SchemeTraits.CANTONESE &&
@@ -17003,7 +17003,7 @@ group("the scheme traits answer as the Engine's SchemeType predicates", () => {
       SchemeTraits.fromName("nope") === -1,
     "the wire names index the scheme numbers, and an unknown name is -1",
   );
-  for (const unknown of [-1, 10, 99]) {
+  for (const unknown of [-1, 11, 99]) {
     check(
       !SchemeTraits.isChinese(unknown) &&
         !SchemeTraits.usesChinesePunctuation(unknown) &&

@@ -96,6 +96,16 @@ impl InputSession {
 
     /// 前缀或引擎候选经过个人上下文重排，再混入英文、表情、颜文字并应用固定位置。
     pub(super) fn update_mixed_candidates(&mut self) {
+        if self.scheme() == SchemeType::XiaoheYinxing
+            && self.local_mode == LocalInputMode::None
+            && !self.dedicated_english
+        {
+            self.ranking_candidates = None;
+            self.prefix_active = false;
+            clone_candidate_rows(self.engine.candidates(), &mut self.mixed_candidates);
+            return;
+        }
+
         self.multilingual_conversion = None;
         if self.update_literal_candidates() {
             return;

@@ -1,3 +1,4 @@
+import { XiaoheTableSection } from "../xiaohe-table-section";
 import { useMemo, useState } from "react";
 import { useSettingsTabs } from "../use-settings-tabs";
 import { NavigationSection } from "../navigation-section";
@@ -123,6 +124,7 @@ export function InputSettingsPage() {
         : undefined,
     [readNineKeyLayout],
   );
+  const [xiaoheReady, setXiaoheReady] = useState(false);
   const [nineKeyEditorOpen, setNineKeyEditorOpen] = useState(false);
   const { tabList, panel } = useSettingsTabs(inputTabs, "输入设置分类", !mobilePlatform);
   const [shuangpinEditorOpen, setShuangpinEditorOpen] = useState(false);
@@ -220,6 +222,9 @@ export function InputSettingsPage() {
       {panel(
         "scheme",
         <>
+          {host?.platform === "macos" && (
+            <XiaoheTableSection dictionary={client.dictionary} onReady={setXiaoheReady} />
+          )}
           <InputSchemeSettingsContent
             preferences={draft}
             hasTouchKeyboardSchemes={Boolean(client.touchKeyboardSchemes)}
@@ -228,7 +233,9 @@ export function InputSettingsPage() {
             selectedTouchKeyboardScheme={selectedTouchKeyboardScheme}
             macos={macosPlatform}
             linux={linuxPlatform}
-            inputSchemes={supportedInputSchemes(host)}
+            inputSchemes={supportedInputSchemes(host).filter(
+              (scheme) => scheme !== "xiaohe_yinxing" || xiaoheReady,
+            )}
             edition={host?.edition}
             // 共享偏好里还没有这一项时，macOS 显示本机 defaults 里的旧选择，与输入法实际的行为一致；其他宿主按关显示。
             shuangpinKeymapHint={

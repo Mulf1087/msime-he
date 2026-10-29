@@ -3569,6 +3569,22 @@ impl<E: InputEngine> Runtime<E> {
             {
                 self.punctuation(value)
             }
+            Action::Character {
+                value: b';',
+                shift: false,
+            } if self.cached.scheme == 10
+                && self.cached.local_mode == "none"
+                && !self.cached.dedicated_english
+                && len > 0 =>
+            {
+                let second = (self.highlighted / self.page_size) * self.page_size + 1;
+                if second < len {
+                    pick = Some((SelectionHow::Digit, second));
+                    self.select_seat(second)
+                } else {
+                    Ok(empty_result(true))
+                }
+            }
             Action::Character { value, shift } => {
                 self.engine.character(value, shift).and_then(|result| {
                     // 九键和 14 键的分词键 `'` 是键面上的切分动作，不是中文引号标点。

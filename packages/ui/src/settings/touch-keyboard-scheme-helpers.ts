@@ -205,6 +205,7 @@ function touchSchemeOf(
     case "zhuyin":
     case "vietnamese":
     case "tibetan":
+    case "xiaohe_yinxing":
     case "stroke": {
       const remembered = preferences.last_chinese_scheme;
       return remembered === "quanpin" || remembered === "shuangpin" || remembered === "wubi"

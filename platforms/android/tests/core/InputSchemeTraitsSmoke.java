@@ -9,7 +9,7 @@ public final class InputSchemeTraitsSmoke {
     }
 
     private static void table(String name, IntPredicate trait, Set<Integer> expected) {
-        for (int scheme = -1; scheme <= 10; scheme++) {
+        for (int scheme = -1; scheme <= 11; scheme++) {
             check(trait.test(scheme) == expected.contains(scheme), name + " for scheme " + scheme);
         }
     }
@@ -20,19 +20,19 @@ public final class InputSchemeTraitsSmoke {
             && InputSchemeTraits.ZHUYIN == 6 && InputSchemeTraits.VIETNAMESE == 7 && InputSchemeTraits.TIBETAN == 8
             && InputSchemeTraits.STROKE == 9,
             "the shared View.scheme ordinals");
-        table("isChinese", InputSchemeTraits::isChinese, Set.of(0, 1, 2, 5, 6, 9));
+        table("isChinese", InputSchemeTraits::isChinese, Set.of(0, 1, 2, 5, 6, 9, 10));
         table("outputsTraditionalNatively", InputSchemeTraits::outputsTraditionalNatively, Set.of(5, 6, 9));
-        table("scriptConversionApplies", InputSchemeTraits::scriptConversionApplies, Set.of(0, 1, 2));
-        table("usesChinesePunctuation", InputSchemeTraits::usesChinesePunctuation, Set.of(0, 1, 2, 3, 5, 6, 9));
-        table("widensFullWidth", InputSchemeTraits::widensFullWidth, Set.of(0, 1, 2, 3, 5, 6, 9));
+        table("scriptConversionApplies", InputSchemeTraits::scriptConversionApplies, Set.of(0, 1, 2, 10));
+        table("usesChinesePunctuation", InputSchemeTraits::usesChinesePunctuation, Set.of(0, 1, 2, 3, 5, 6, 9, 10));
+        table("widensFullWidth", InputSchemeTraits::widensFullWidth, Set.of(0, 1, 2, 3, 5, 6, 9, 10));
         table("opensLocalModes", InputSchemeTraits::opensLocalModes, Set.of(0, 1));
         table("showsGlosses", InputSchemeTraits::showsGlosses, Set.of(0, 1, 2, 4));
-        table("commitsOnBlur", InputSchemeTraits::commitsOnBlur, Set.of(4, 6, 7, 8));
+        table("commitsOnBlur", InputSchemeTraits::commitsOnBlur, Set.of(4, 6, 7, 8, 10));
         table("drawsReading", InputSchemeTraits::drawsReading, Set.of(3, 4, 6, 9));
         table("hasOpenableCandidateList", InputSchemeTraits::hasOpenableCandidateList, Set.of(4, 6));
         table("cancelKeepsComposition", InputSchemeTraits::cancelKeepsComposition, Set.of(4, 6, 7, 8));
-        table("locksCaret", InputSchemeTraits::locksCaret, Set.of(4, 6, 7, 8));
-        table("known", InputSchemeTraits::known, Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9));
+        table("locksCaret", InputSchemeTraits::locksCaret, Set.of(4, 6, 7, 8, 10));
+        table("known", InputSchemeTraits::known, Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
         table("letterComposition", InputSchemeTraits::letterComposition, Set.of(4, 7, 8));
         check(InputSchemeTraits.active(4, InputSchemeTraits.KOREAN, false),
             "matching scheme is active outside dedicated English");

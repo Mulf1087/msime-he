@@ -50,6 +50,7 @@ SCHEME_MODES = {
     "vietnamese": "Vietnamese",
     "tibetan": "Tibetan",
     "stroke": "Stroke",
+    "xiaohe_yinxing": "Xiaohe",
 }
 PRIMARY = "Hans"
 ENGLISH = "Roman"

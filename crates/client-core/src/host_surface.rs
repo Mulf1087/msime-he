@@ -503,7 +503,7 @@ pub struct EditionInfo {
 }
 
 /// 基础方案加上粤拼、注音、越南文、藏文和笔画，所有宿主都提供。
-const ALL_INPUT_SCHEMES: [InputScheme; 10] = [
+const ALL_INPUT_SCHEMES: &[InputScheme] = &[
     InputScheme::Quanpin,
     InputScheme::Shuangpin,
     InputScheme::Wubi,
@@ -514,17 +514,20 @@ const ALL_INPUT_SCHEMES: [InputScheme; 10] = [
     InputScheme::Vietnamese,
     InputScheme::Tibetan,
     InputScheme::Stroke,
+    #[cfg(target_os = "macos")]
+    InputScheme::XiaoheYinxing,
 ];
 
 /// 本构建交给 Engine 的方案：所有宿主都是全部十个，因为每个宿主都路由粤拼、注音、越南文、藏文和笔画的按键，并放置粤拼、注音和笔画的词库（越南文和藏文不需要词库）。偏好文档里写的其他方案由 host-api 回退；粤拼、注音和笔画在词库没装时仍然回退。
 pub fn compiled_input_schemes() -> &'static [InputScheme] {
-    &ALL_INPUT_SCHEMES
+    ALL_INPUT_SCHEMES
 }
 
 /// `edition` 交给 Engine 的方案：[`compiled_input_schemes`] 里本版本提供的那些，顺序不变。full 得到的就是全部八个。host-api 对偏好里其他的方案一律回退到本版本的方案，所以在不是 full 的版本里，任何偏好文档都不会让 Engine 跑一个本版本不含的方案。
 pub fn offered_input_schemes(edition: &Edition) -> Vec<InputScheme> {
     ALL_INPUT_SCHEMES
-        .into_iter()
+        .iter()
+        .copied()
         .filter(|scheme| edition.offers(*scheme))
         .collect()
 }
@@ -896,7 +899,13 @@ impl HostCapabilities {
             device_model: None,
             candidate_panel_limit: None,
             // 每个宿主都路由粤拼、注音、越南文、藏文和笔画的按键，并附带粤拼、注音和笔画需要的词库。
-            input_schemes: ALL_INPUT_SCHEMES.to_vec(),
+            input_schemes: ALL_INPUT_SCHEMES
+                .iter()
+                .copied()
+                .filter(|scheme| {
+                    *scheme != InputScheme::XiaoheYinxing || platform == HostPlatform::Macos
+                })
+                .collect(),
             edition: None,
             helpcode_schemas: if platform == HostPlatform::Android {
                 ANDROID_HELPCODE_SCHEMAS

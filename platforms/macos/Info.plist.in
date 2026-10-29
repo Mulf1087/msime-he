@@ -145,6 +145,18 @@ ${MSIME_SPARKLE_PLIST_KEYS}<!-- macOS 27 上 imklaunchagent 拒绝不是 `<CFBun
       <key>tsInputModePrimaryInScriptKey</key><false/>
       <key>tsInputModeScriptKey</key><string>smSimpChinese</string>
     </dict>
+    <key>app.msime.inputmethod.MetasequoiaIME.Xiaohe</key>
+    <dict>
+      <key>TISInputSourceID</key><string>app.msime.inputmethod.MetasequoiaIME.Xiaohe</string>
+      <key>TISIntendedLanguage</key><string>zh-Hans</string>
+      <key>tsInputModeCharacterRepertoireKey</key><array><string>Hans</string></array>
+      <key>tsInputModeDefaultStateKey</key><false/>
+      <key>tsInputModeIsVisibleKey</key><true/>
+      <key>tsInputModeMenuIconFileKey</key><string>MSIMEClientInputMethodMenuIconXiaohe.tiff</string>
+      <key>tsInputModePaletteIconFileKey</key><string>MSIMEClientInputMethodMenuIconXiaohe.tiff</string>
+      <key>tsInputModePrimaryInScriptKey</key><false/>
+      <key>tsInputModeScriptKey</key><string>smSimpChinese</string>
+    </dict>
     <key>app.msime.inputmethod.MetasequoiaIME.Vietnamese</key>
     <dict>
       <key>TISInputSourceID</key><string>app.msime.inputmethod.MetasequoiaIME.Vietnamese</string>
@@ -172,6 +184,6 @@ ${MSIME_SPARKLE_PLIST_KEYS}<!-- macOS 27 上 imklaunchagent 拒绝不是 `<CFBun
     </dict>
   </dict>
   <key>tsVisibleInputModeOrderedArrayKey</key>
-  <array><string>app.msime.inputmethod.MetasequoiaIME.Hans</string><string>app.msime.inputmethod.MetasequoiaIME.Shuangpin</string><string>app.msime.inputmethod.MetasequoiaIME.Wubi</string><string>app.msime.inputmethod.MetasequoiaIME.Cantonese</string><string>app.msime.inputmethod.MetasequoiaIME.Zhuyin</string><string>app.msime.inputmethod.MetasequoiaIME.Japanese</string><string>app.msime.inputmethod.MetasequoiaIME.Korean</string><string>app.msime.inputmethod.MetasequoiaIME.Vietnamese</string><string>app.msime.inputmethod.MetasequoiaIME.Tibetan</string><string>app.msime.inputmethod.MetasequoiaIME.Stroke</string><string>app.msime.inputmethod.MetasequoiaIME.Roman</string></array>
+  <array><string>app.msime.inputmethod.MetasequoiaIME.Hans</string><string>app.msime.inputmethod.MetasequoiaIME.Shuangpin</string><string>app.msime.inputmethod.MetasequoiaIME.Wubi</string><string>app.msime.inputmethod.MetasequoiaIME.Cantonese</string><string>app.msime.inputmethod.MetasequoiaIME.Zhuyin</string><string>app.msime.inputmethod.MetasequoiaIME.Japanese</string><string>app.msime.inputmethod.MetasequoiaIME.Korean</string><string>app.msime.inputmethod.MetasequoiaIME.Vietnamese</string><string>app.msime.inputmethod.MetasequoiaIME.Tibetan</string><string>app.msime.inputmethod.MetasequoiaIME.Stroke</string><string>app.msime.inputmethod.MetasequoiaIME.Xiaohe</string><string>app.msime.inputmethod.MetasequoiaIME.Roman</string></array>
 </dict>
 </dict></plist>

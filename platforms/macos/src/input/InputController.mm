@@ -2492,7 +2492,7 @@ static const char *MSIMESmartPunctuationScalarClass(uint32_t scalar) {
 // renderer, the placement and the skin all work unchanged.
 - (NSDictionary *)glossSenseView {
     NSMutableArray *candidates = [NSMutableArray array];
-    const NSUInteger pageSize = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+    const NSUInteger pageSize = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
     const NSUInteger page = _glossSenseCursor / pageSize;
     const NSUInteger start = page * pageSize;
     for (NSUInteger index = start; index < MIN(start + pageSize, _glossSenses.count); ++index)
@@ -2565,7 +2565,7 @@ BOOL MSIMEInputControllerHasUnfinishedInput(void) {
     if (!_glossSenses.count || event.type != NSEventTypeKeyDown) return NO;
     const NSEventModifierFlags modifiers = event.modifierFlags &
         (NSEventModifierFlagShift | NSEventModifierFlagControl | NSEventModifierFlagOption | NSEventModifierFlagCommand);
-    const NSUInteger pageSize = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+    const NSUInteger pageSize = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
     const NSUInteger count = _glossSenses.count;
     if (modifiers == 0) {
         const int slot = msime::mac::CandidateDigitSlotOnPage(msime::mac::PhysicalCandidateDigitSlot(event.keyCode), pageSize);
@@ -2638,7 +2638,7 @@ BOOL MSIMEInputControllerHasUnfinishedInput(void) {
     NSMutableArray<NSDictionary *> *valid = [NSMutableArray array];
     for (id entry in (NSArray *)snapshot[@"candidates"])
         if ([entry isKindOfClass:NSDictionary.class] && !MSIMECandidateIsAIPlaceholder(entry) && MSIMECurrentCandidateIdentity(entry[@"id"], _view)) [valid addObject:entry];
-    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
     NSString *code = MSIMECandidatePinCode(_view);
     NSMutableArray<NSDictionary *> *ordered = [NSMutableArray arrayWithCapacity:valid.count];
     for (NSUInteger start = 0; start < valid.count; start += columns)
@@ -2675,7 +2675,7 @@ BOOL MSIMEInputControllerHasUnfinishedInput(void) {
             break;
         }
     [self discardExpandedCandidates];
-    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
     NSDictionary *transition = nil;
     while (valid && current != NSNotFound && current != target) {
         const uint32_t command = current / columns < target / columns ? MSIME_NEXT_PAGE
@@ -2703,12 +2703,13 @@ BOOL MSIMEInputControllerHasUnfinishedInput(void) {
 
 // 部分选词沿用已展开的展示方式，剩一页也不要求用户重新展开。
 - (BOOL)openExpandedCandidatesAfterSelection:(BOOL)afterSelection {
+    if (MSIMESchemeRulesApply(_view) && !msime::mac::scheme::AllowsExpandedCandidates(MSIMEViewScheme(_view))) return NO;
     if (_expandedCandidates || !(afterSelection ? [self expandedCandidatesAllowed] : [self expandedCandidatesOffered])) return NO;
     NSArray<NSDictionary *> *entries = [self expandedCandidatesFromSnapshot:[_session allCandidatesWithError:nil]];
     NSArray *page = [self usesPresentedCandidatePages] ? _adaptivePageCandidates
         : ([_view[@"candidates"] isKindOfClass:NSArray.class] ? _view[@"candidates"] : @[]);
     if (!entries.count || (!afterSelection && entries.count <= page.count)) return NO;
-    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
     // 没有高亮时停在当前这一页的第一个。
     NSUInteger pageIndex = 0;
     MSIMEStrictUnsignedIntegerValue(_view[@"page"], &pageIndex);
@@ -2738,6 +2739,7 @@ BOOL MSIMEInputControllerHasUnfinishedInput(void) {
 
 // 重画之前对照当前视图，见本节开头。返回 NO 表示网格该收起。
 - (BOOL)expandedCandidatesStillApply {
+    if (MSIMESchemeRulesApply(_view) && !msime::mac::scheme::AllowsExpandedCandidates(MSIMEViewScheme(_view))) return NO;
     if (!_expandedCandidates.count || !_session || !_activeClient || !_appearance.expandCandidates || _appearance.vertical ||
         _appearance.englishMode || [self glossSensePageActive] || MSIMECandidateListOpen(_view) ||
         !MSIMEStrictBoolean(_view[@"focused"]))
@@ -2794,7 +2796,7 @@ BOOL MSIMEInputControllerHasUnfinishedInput(void) {
 // 普通滚轮保留按行定位；触控板与惯性由 NSScrollView 处理。
 - (void)scrollExpandedCandidatesBackwards:(BOOL)backwards {
     const NSUInteger count = _expandedCandidates.count;
-    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
     if (!count || ![_expandedScrollView scrollByRowBackwards:backwards]) return;
     const NSRange visible = _expandedScrollView.visibleRowRange;
     _expandedScrollsViewport = YES;
@@ -2823,7 +2825,7 @@ BOOL MSIMEInputControllerHasUnfinishedInput(void) {
     const NSEventModifierFlags modifiers = event.modifierFlags &
         (NSEventModifierFlagShift | NSEventModifierFlagControl | NSEventModifierFlagOption | NSEventModifierFlagCommand);
     const NSUInteger count = _expandedCandidates.count;
-    const NSUInteger columns = MAX((NSUInteger)1, [self usesAdaptiveCandidates] ? _appearance.candidateColumns : _appearance.pageSize);
+    const NSUInteger columns = MAX((NSUInteger)1, [self usesAdaptiveCandidates] ? _appearance.candidateColumns : [self effectiveCandidatePageSize]);
     std::optional<msime::candidate::ExpandedGridMove> move;
     if (modifiers == 0) {
         // 数字键选高亮那一行里的第几个，和普通候选窗选当前页一样；数字是正在拼写的输入（Unicode、表达式模式）或九键组字时不是选词键。
@@ -4316,7 +4318,7 @@ static const NSTimeInterval kSettledRerankPoll = 1.0 / 60.0;
         @"zhuyin": @"注音",
         @"vietnamese": @"越南语",
         @"tibetan": @"藏文",
-        @"stroke": @"笔画",
+        @"stroke": @"笔画", @"xiaohe_yinxing": @"小鹤音形",
     };
     return schemeTitles[scheme];
 }
@@ -4448,10 +4450,13 @@ static __weak MSIMEInputController *MSIMEQueuedPreferenceSaver;
         });
     });
 }
+- (NSUInteger)effectiveCandidatePageSize {
+    return MSIMESchemeRulesApply(_view) ? msime::mac::scheme::CandidatePageSize(MSIMEViewScheme(_view), (unsigned)_appearance.pageSize) : _appearance.pageSize;
+}
 - (void)syncPageSize {
     if (!_session) return;
     [self ensureAppearance];
-    NSUInteger size = _appearance.pageSize;
+    NSUInteger size = [self effectiveCandidatePageSize];
     if (_requestedPageSize == size) return;
     NSDictionary *result = [_session setCandidatePageSize:(uint8_t)size error:nil];
     if (result) {
@@ -4463,7 +4468,7 @@ static __weak MSIMEInputController *MSIMEQueuedPreferenceSaver;
 static NSUInteger MSIMEAdaptiveHighlightIndex(NSArray<NSDictionary *> *entries, NSDictionary *view);
 
 - (BOOL)usesAdaptiveCandidates {
-    return _appearance.adaptiveCandidateCount && ![self glossSensePageActive] && !MSIMECandidateListOpen(_view);
+    return msime::mac::scheme::AllowsAdaptiveCandidates(MSIMEViewScheme(_view)) && _appearance.adaptiveCandidateCount && ![self glossSensePageActive] && !MSIMECandidateListOpen(_view);
 }
 
 - (BOOL)usesPresentedCandidatePages {
@@ -4700,7 +4705,7 @@ static NSUInteger MSIMEAdaptiveHighlightIndex(NSArray<NSDictionary *> *entries, 
     if (!chineseFallback || !MSIMEInputSchemeAvailable(@"japanese", hostOptions)) return NO;
     NSString *scheme = MSIMEEffectiveInputScheme(_appearance.inputScheme, _appearance.lastChineseScheme, hostOptions);
     const NSUInteger schemeIndex = scheme ? [names indexOfObject:scheme] : NSNotFound;
-    if (schemeIndex == NSNotFound || schemeIndex > 9) return NO;
+    if (schemeIndex == NSNotFound || schemeIndex > 10) return NO;
     const BOOL english = _appearance.englishMode;
     const int mode = msime::mac::cycle::ModeCode(english, schemeIndex == 3);
     NSDictionary *reply = [_session languageCycleEnabled:YES
@@ -7116,6 +7121,7 @@ static BOOL MSIMEClaimPreferenceRecovery(NSString *directory) {
 // Whether word-to-character is enabled and bound to the pair this event belongs to. Shared by the paging
 // exclusion and the branch that acts on it so the two can never disagree about who owns the key.
 - (BOOL)wordCharacterClaimsEvent:(NSEvent *)event {
+    if (MSIMESchemeRulesApply(_view) && MSIMEViewScheme(_view) == 10 && (event.keyCode == 33 || event.keyCode == 30)) return NO;
     NSDictionary *wordCharacter = [_appearance wordCharacterOptions];
     if (![wordCharacter[@"enabled"] boolValue]) return NO;
     // A scheme whose letters build the written text directly (a Korean syllable or Hanja, a Vietnamese word) has no word to take a character from: the pair is punctuation there (see candidateListMark in handleEvent:client:).
@@ -7592,6 +7598,16 @@ static BOOL MSIMEClaimPreferenceRecovery(NSString *directory) {
         [self cancelHTTPVoiceInput]; [self cancelDoubaoVoiceInput]; [self cancelLiveVoiceInput];
     }
     if (voiceShortcut.consumed) return YES;
+    if (MSIMESchemeRulesApply(_view) && msime::mac::scheme::XiaoheCancelKey(MSIMEViewScheme(_view), event.keyCode,
+        event.type == NSEventTypeFlagsChanged, [_view[@"preedit"] length] > 0) &&
+        ((event.type == NSEventTypeFlagsChanged && (event.modifierFlags & NSEventModifierFlagShift) &&
+          !(event.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagControl | NSEventModifierFlagOption))) ||
+         (event.type == NSEventTypeKeyDown && !(event.modifierFlags &
+          (NSEventModifierFlagShift | NSEventModifierFlagCommand | NSEventModifierFlagControl | NSEventModifierFlagOption))))) {
+        [self resetModifierTap];
+        [self apply:[_session command:MSIME_CANCEL error:nil]];
+        return YES;
+    }
     if ([self observeModifierTap:event client:sender]) {
         [self toggleInputModeFromModifierTap];
         return YES;
@@ -7806,7 +7822,7 @@ static BOOL MSIMEClaimPreferenceRecovery(NSString *directory) {
     // 自动适应的一行和引擎的固定页各算各的：只要任一边用到第十格，`0` 就归选词，
     // 由下面的候选身份检查吞掉这一行没有的格子，不能落进引擎去选它固定页里看不见的第十个。
     const int physicalDigit = msime::mac::CandidateDigitSlotOnPage(msime::mac::PhysicalCandidateDigitSlot(event.keyCode),
-        [self usesPresentedCandidatePages] ? MAX((NSUInteger)_appearance.pageSize, _adaptivePageCandidates.count) : _appearance.pageSize);
+        [self usesPresentedCandidatePages] ? MAX((NSUInteger)[self effectiveCandidatePageSize], _adaptivePageCandidates.count) : [self effectiveCandidatePageSize]);
     NSArray *visibleCandidates = [self usesPresentedCandidatePages] ? _adaptivePageCandidates
         : MSIMEVisibleCandidates(MSIMEReorderedPinnedCandidates(_view[@"candidates"], MSIMECandidatePinCode(_view)));
     const NSEventModifierFlags glossModifiers = event.modifierFlags &
@@ -7995,18 +8011,19 @@ static BOOL MSIMEClaimPreferenceRecovery(NSString *directory) {
     // exactly when that branch will claim it: whichever way it goes, the keystroke has an owner.
     const BOOL wordCharacterOwnsKey = [self wordCharacterClaimsEvent:event];
     // The marks among the paging keys (- = [ ] , .) are punctuation while an opened candidate list (the Korean Hanja list) shows, as they are with no list: the Engine closes it and writes the composition with the mark, so a mark typed after a syllable never turns a page instead. Page Up and Page Down still page.
+    const BOOL xiaoheRules = MSIMESchemeRulesApply(_view) && MSIMEViewScheme(_view) == 10;
     const BOOL candidateListMark = MSIMECandidateListOpen(_view) && event.keyCode != 116 && event.keyCode != 121;
     if (_panel.isVisible && !(event.modifierFlags & NSEventModifierFlagShift) &&
         physicalPageDirection != 0 && !japaneseMinusEqual && !engineInputKey && !wordCharacterOwnsKey && !candidateListMark) {
         const BOOL previous = physicalPageDirection < 0 &&
             ((event.keyCode == 27 && [_appearance navigationEnabled:@"minus_equal"]) ||
-             (event.keyCode == 33 && [_appearance navigationEnabled:@"brackets"]) ||
-             (event.keyCode == 43 && [_appearance navigationEnabled:@"comma_period"]) ||
+             (event.keyCode == 33 && (xiaoheRules || [_appearance navigationEnabled:@"brackets"])) ||
+             (event.keyCode == 43 && !xiaoheRules && [_appearance navigationEnabled:@"comma_period"]) ||
              (event.keyCode == 116 && [_appearance navigationEnabled:@"page_up_down"]));
         const BOOL next = physicalPageDirection > 0 &&
             ((event.keyCode == 24 && [_appearance navigationEnabled:@"minus_equal"]) ||
-             (event.keyCode == 30 && [_appearance navigationEnabled:@"brackets"]) ||
-             (event.keyCode == 47 && [_appearance navigationEnabled:@"comma_period"]) ||
+             (event.keyCode == 30 && (xiaoheRules || [_appearance navigationEnabled:@"brackets"])) ||
+             (event.keyCode == 47 && !xiaoheRules && [_appearance navigationEnabled:@"comma_period"]) ||
              (event.keyCode == 121 && [_appearance navigationEnabled:@"page_up_down"]));
         if (previous || next) {
             [self apply:[self candidateCommand:previous ? MSIME_PREVIOUS_PAGE : MSIME_NEXT_PAGE]];
@@ -8904,7 +8921,7 @@ static BOOL MSIMEClaimPreferenceRecovery(NSString *directory) {
     CGFloat clearance = (_appearance.fontSize + 42.0) * scale;
     NSUInteger pageCount = 0;
     MSIMEStrictUnsignedIntegerValue(_view[@"page_count"], &pageCount);
-    if (_appearance.vertical) clearance = ((_appearance.fontSize + 10.0) * MIN([_view[@"candidates"] count], _appearance.pageSize) + 24.0) * scale;
+    if (_appearance.vertical) clearance = ((_appearance.fontSize + 10.0) * MIN([_view[@"candidates"] count], [self effectiveCandidatePageSize]) + 24.0) * scale;
     CGFloat preeditExtra = 0;
     CGFloat bodyRowGap = 0;
     BOOL headerPager = _appearance.showsCandidatePageNumber;
@@ -9509,7 +9526,7 @@ static const char *MSIMEMotionPresetName(msime::mac::SkinAnimationPreset preset)
     const CGFloat indicatorGap = MSIMECandidatePageIndicatorGap * scale;
 
     const NSUInteger count = _expandedCandidates.count;
-    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+    const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
     // 共享卷轴的收起入口留在候选右侧；原生主题保留首行行号及其开关。
     const BOOL skinToggle = skin.expandPanel.value_or(false) && _appearance.showsCandidateExpandButton;
     const auto toggle = skinToggle ? [self candidateExpandToggleForSkin:skin font:font scale:scale]
@@ -9885,7 +9902,7 @@ static NSUInteger MSIMEAdaptiveHighlightIndex(NSArray<NSDictionary *> *entries, 
         if (entries.count && entries.count < snapshotRows.count) {
             _filteredFixedPages = YES;
             _adaptiveCandidates = entries;
-            const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)_appearance.pageSize);
+            const NSUInteger columns = MAX((NSUInteger)1, (NSUInteger)[self effectiveCandidatePageSize]);
             _adaptivePage = MSIMEAdaptiveHighlightIndex(entries, _view) / columns;
             _adaptivePages = {};
             for (NSUInteger start = 0; start < entries.count; start += columns) {

@@ -108,6 +108,10 @@ import {
 } from "./core/desktop-host-services";
 
 const dictionary: DictionaryClient = {
+  xiaohe: (text) =>
+    invoke("dictionary_request", {
+      action: { operation: text === undefined ? "xiaohe_status" : "xiaohe_import", text },
+    }),
   browse: (offset, limit, kind, query) =>
     invoke("dictionary_request", {
       action: { operation: "browse", offset, limit, kind, query },

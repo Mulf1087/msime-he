@@ -63,7 +63,7 @@ CHINESE_MAIN_SCHEMES = {"quanpin", "shuangpin", "wubi"}
 CHINESE_ONLY_COMPONENTS = ["chinese-main", "ngram"]
 ENGINE_TYPES = ROOT / "crates/engine/src/types.rs"
 # 写中文的方案，与 client-core 的 `ChineseScheme::of` 是同一组。非英文离线释义按中文候选查，手写模型只认汉字，所以只有提供其中任何一个方案的版本才有这两个功能。
-CHINESE_SCHEMES = {"quanpin", "shuangpin", "wubi", "cantonese", "zhuyin", "stroke"}
+CHINESE_SCHEMES = {"quanpin", "shuangpin", "wubi", "cantonese", "zhuyin", "stroke", "xiaohe_yinxing"}
 CLIENT_PREFERENCES = ROOT / "crates/client-core/src/preferences.rs"
 # 只对中文方案有意义的功能：必须等于版本是否提供中文方案。
 CHINESE_FEATURES = ["offline_glosses", "handwriting"]
@@ -180,7 +180,7 @@ def camel_to_snake(name: str) -> str:
 
 def engine_schemes(errors: list[str]) -> list[str]:
     text = HOST_SURFACE.read_text(encoding="utf-8")
-    match = re.search(r"const ALL_INPUT_SCHEMES: \[InputScheme; \d+\] = \[(.*?)\];", text, re.S)
+    match = re.search(r"const ALL_INPUT_SCHEMES: (?:\[InputScheme; \d+\]|&\[InputScheme\]) = &?\[(.*?)\];", text, re.S)
     if not match:
         errors.append(f"{HOST_SURFACE.relative_to(ROOT)}: ALL_INPUT_SCHEMES not found")
         return []

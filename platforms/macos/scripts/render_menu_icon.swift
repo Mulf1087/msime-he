@@ -145,6 +145,6 @@ try writeIcon(named: "MSIMEClientInputMethodMenuIcon") { drawLogo(logo, in: $0, 
 // 各输入模式的图标，Info.plist.in 里每个模式各引用一张。
 for (character, mode) in [("中", "Chinese"), ("双", "Shuangpin"), ("五", "Wubi"), ("粤", "Cantonese"),
                           ("注", "Zhuyin"), ("日", "Japanese"), ("한", "Korean"), ("越", "Vietnamese"),
-                          ("ཀ", "Tibetan"), ("笔", "Stroke"), ("英", "English")] {
+                          ("ཀ", "Tibetan"), ("笔", "Stroke"), ("鹤", "Xiaohe"), ("英", "English")] {
     try writeIcon(named: "MSIMEClientInputMethodMenuIcon\(mode)") { drawModeGlyph(character, in: $0, side: $1) }
 }

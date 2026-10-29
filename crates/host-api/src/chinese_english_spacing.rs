@@ -9,10 +9,13 @@ use msime_input_runtime::OutputContext;
 /// 方案必须是中文方案（日文、韩文、越南文、藏文不动）；本地模式只放行三种：普通组字 `none`（含云候选、AI 候选、五笔顶字的字母尾巴、暂存选词加原样字母）、K 模式快捷短语 `quick_phrase` 和 J 模式超级简拼 `super_jianpin`。网址、日期时间、Unicode、emoji、颜文字、计算、指令、提及、临时英文和临时日文的上屏是用户要原样得到的内容，一律不动。
 pub(crate) fn applies(context: Option<&OutputContext>) -> bool {
     context.is_some_and(|context| {
-        matches!(
-            context.local_mode.as_str(),
-            "none" | "quick_phrase" | "super_jianpin"
-        ) && SchemeType::from_u8(context.scheme).is_some_and(SchemeType::is_chinese)
+        // 固定音形码表的普通上屏必须保留字词原文（如含拉丁字母的词）。
+        (context.scheme != SchemeType::XiaoheYinxing as u8 || context.local_mode != "none")
+            && matches!(
+                context.local_mode.as_str(),
+                "none" | "quick_phrase" | "super_jianpin"
+            )
+            && SchemeType::from_u8(context.scheme).is_some_and(SchemeType::is_chinese)
     })
 }
 
@@ -175,6 +178,11 @@ mod plan_tests {
             cross_commit_plan(request.clone()).unwrap()["enabled"],
             false
         );
+        request["context"]["scheme"] = json!(10);
+        assert_eq!(
+            cross_commit_plan(request.clone()).unwrap()["enabled"],
+            false
+        );
         request["context"]["scheme"] = json!(0);
         request["config"]["excluded_apps"] = json!(["COM.EXAMPLE.WRITER"]);
         assert_eq!(
@@ -227,6 +235,8 @@ pub(crate) fn cross_commit_plan(request: serde_json::Value) -> Result<serde_json
         && request.config.enabled_for_application(&request.application)
         && request.context.is_some_and(|context| {
             !context.plugin_row
+                && (context.scheme != SchemeType::XiaoheYinxing as u8
+                    || context.local_mode != "none")
                 && SchemeType::from_u8(context.scheme).is_some_and(SchemeType::is_chinese)
                 && matches!(
                     context.local_mode.as_str(),

@@ -117,6 +117,8 @@ pub enum SchemeType {
     Tibetan = 8,
     /// Stroke (笔画) read against `msime-stroke.db`: the keys h s p n z type the five strokes 横竖撇点折 in writing order and x stands for any one stroke; the preedit draws the strokes, candidates are single characters whose stroke code starts with the typed strokes, and nothing is learned.
     Stroke = 9,
+    /// 小鹤音形：独立固定码表，候选不参与拼音学习。
+    XiaoheYinxing = 10,
 }
 
 impl SchemeType {
@@ -132,6 +134,7 @@ impl SchemeType {
             7 => Self::Vietnamese,
             8 => Self::Tibetan,
             9 => Self::Stroke,
+            10 => Self::XiaoheYinxing,
             _ => return None,
         })
     }
@@ -149,6 +152,7 @@ impl SchemeType {
             Self::Vietnamese => "vietnamese",
             Self::Tibetan => "tibetan",
             Self::Stroke => "stroke",
+            Self::XiaoheYinxing => "xiaohe_yinxing",
         }
     }
 
@@ -163,6 +167,7 @@ impl SchemeType {
     /// A Chinese scheme: what 中文 returns to and what the Chinese statistics count.
     pub const fn is_chinese(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::Quanpin
             | Self::Shuangpin
             | Self::Wubi
@@ -176,6 +181,7 @@ impl SchemeType {
     /// The scheme's own text is Traditional Chinese, so no script conversion is wanted.
     pub const fn outputs_traditional_natively(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin
             | Self::Shuangpin
             | Self::Wubi
@@ -190,6 +196,7 @@ impl SchemeType {
     /// The host's Simplified-to-Traditional conversion applies to the scheme's commits and preedit.
     pub const fn script_conversion_applies(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::Quanpin | Self::Shuangpin | Self::Wubi => true,
             Self::JapaneseRomaji
             | Self::Korean
@@ -204,6 +211,7 @@ impl SchemeType {
     /// The engine translates punctuation through the Chinese table. Korean writes half-width ASCII marks instead; Japanese goes through the table like the Chinese schemes.
     pub const fn uses_chinese_punctuation(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::Quanpin
             | Self::Shuangpin
             | Self::Wubi
@@ -218,6 +226,7 @@ impl SchemeType {
     /// The host's smart punctuation (context-dependent marks) may run.
     pub const fn host_smart_punctuation(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::Wubi | Self::Cantonese | Self::Stroke => true,
             Self::JapaneseRomaji
             | Self::Korean
@@ -230,6 +239,7 @@ impl SchemeType {
     /// Commits are widened when the full-width switch is on.
     pub const fn widens_full_width(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::Quanpin
             | Self::Shuangpin
             | Self::Wubi
@@ -244,6 +254,7 @@ impl SchemeType {
     /// English words and emoji or kaomoji may be mixed into the candidate list.
     pub const fn allows_english_emoji_mixing(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin => true,
             Self::Wubi
             | Self::JapaneseRomaji
@@ -259,6 +270,7 @@ impl SchemeType {
     /// 没有组字时，Shift+字母打开按拼音拼写查的本地模式（E、M、J、R）和计算模式 V；K、C、U、T、Y、S 和 `/`、`@` 由 `opens_table_modes` 判断（`InputSession::local_mode_for_entry`）。
     pub const fn opens_local_modes(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin => true,
             Self::Wubi
             | Self::JapaneseRomaji
@@ -274,6 +286,7 @@ impl SchemeType {
     /// 没有组字时，Shift+K 打开短语模式，`/` 和 `@` 打开指令和提及模式，Shift+C、U、T、Y、S 打开拆字、Unicode、日期时间、临时英文和符号模式；五笔也提供这些不经过方案拼写的入口。
     pub const fn opens_table_modes(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::Quanpin | Self::Shuangpin | Self::Wubi => true,
             Self::JapaneseRomaji
             | Self::Korean
@@ -288,6 +301,7 @@ impl SchemeType {
     /// 「只出单字」打开时，候选里去掉含汉字的词和整句，只留单个汉字。只用于选一个候选就上屏、剩下的拼写接着组字的方案；注音的候选列表是给组字里的一段改字，笔画本来只出单字。
     pub const fn filters_to_single_characters(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::Wubi | Self::Cantonese => true,
             Self::JapaneseRomaji
             | Self::Korean
@@ -301,6 +315,7 @@ impl SchemeType {
     /// 组字中键入 `www.`、`http:` 等时进入网址模式。
     pub const fn detects_urls(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::Wubi => true,
             Self::JapaneseRomaji
             | Self::Korean
@@ -315,6 +330,7 @@ impl SchemeType {
     /// Selections adjust frequencies and store sentences in the main dictionary and journal.
     pub const fn learns_into_main_dictionary(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::Wubi => true,
             Self::JapaneseRomaji
             | Self::Korean
@@ -329,6 +345,7 @@ impl SchemeType {
     /// Letters committed raw that are not a complete spelling are learned as an English word.
     pub const fn learns_english_words(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin => true,
             Self::Wubi
             | Self::JapaneseRomaji
@@ -344,6 +361,7 @@ impl SchemeType {
     /// The engine raises cloud queries for the composition.
     pub const fn cloud_eligible(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::JapaneseRomaji => true,
             Self::Wubi
             | Self::Korean
@@ -358,6 +376,7 @@ impl SchemeType {
     /// Candidates may carry translation glosses. Korean's are the Hanja rows, glossed and translated like Chinese ones under their 훈음.
     pub const fn shows_glosses(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::Wubi | Self::Korean => true,
             Self::JapaneseRomaji
             | Self::Vietnamese
@@ -371,6 +390,7 @@ impl SchemeType {
     /// Focus loss or a scheme switch commits the composition instead of discarding it.
     pub const fn commits_on_blur(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::Korean | Self::Vietnamese | Self::Tibetan | Self::Zhuyin => true,
             Self::Quanpin
             | Self::Shuangpin
@@ -384,6 +404,7 @@ impl SchemeType {
     /// A partial selection is held as phrase progress rather than committed at once.
     pub const fn holds_phrase_progress(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::Wubi | Self::JapaneseRomaji => true,
             Self::Korean
             | Self::Vietnamese
@@ -397,6 +418,7 @@ impl SchemeType {
     /// The candidate list may be reordered by the sentence model and the personal context.
     pub const fn reranks_with_sentence_model(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin => true,
             Self::Wubi
             | Self::JapaneseRomaji
@@ -412,6 +434,7 @@ impl SchemeType {
     /// The snapshot's `reading` carries the composed text (kana, Hangul, the Zhuyin conversion, the Stroke glyphs 一丨丿丶乛) for the host to draw.
     pub const fn draws_reading(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::JapaneseRomaji | Self::Korean | Self::Zhuyin | Self::Stroke => true,
             Self::Quanpin
             | Self::Shuangpin
@@ -425,6 +448,7 @@ impl SchemeType {
     /// Candidates appear only in a list the user opens (`Command::ConvertHanja`: the Korean Hanja list, the Zhuyin list), and the list can be closed again.
     pub const fn has_openable_candidate_list(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Korean | Self::Zhuyin => true,
             Self::Quanpin
             | Self::Shuangpin
@@ -440,6 +464,7 @@ impl SchemeType {
     /// 第一次 Cancel 保留组字：关闭打开的候选列表，或把越南文、藏文的组字切回按键原文。第二次 Cancel 才丢弃它。
     pub const fn cancel_keeps_composition(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Korean | Self::Zhuyin | Self::Vietnamese | Self::Tibetan => true,
             Self::Quanpin
             | Self::Shuangpin
@@ -453,6 +478,7 @@ impl SchemeType {
     /// Selecting any of the scheme's candidates finishes the composition. Native wubi rows also finish, which is decided per row because a mixed wubi list holds pinyin rows too.
     pub const fn selection_completes(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::JapaneseRomaji | Self::Korean | Self::Vietnamese | Self::Tibetan => true,
             Self::Quanpin
             | Self::Shuangpin
@@ -466,6 +492,7 @@ impl SchemeType {
     /// The candidate list reads the composition as pinyin, so selections advance and learn as pinyin.
     pub const fn follows_pinyin_candidates(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin => true,
             Self::Wubi
             | Self::JapaneseRomaji
@@ -481,6 +508,7 @@ impl SchemeType {
     /// An apostrophe typed inside the composition is a syllable boundary the scheme keeps.
     pub const fn accepts_apostrophe(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin | Self::JapaneseRomaji | Self::Cantonese => true,
             Self::Wubi
             | Self::Korean
@@ -494,6 +522,7 @@ impl SchemeType {
     /// The caret stays at the end of the composition.
     pub const fn locks_caret(self) -> bool {
         match self {
+            Self::XiaoheYinxing => true,
             Self::Korean | Self::Vietnamese | Self::Tibetan | Self::Zhuyin => true,
             Self::Quanpin
             | Self::Shuangpin
@@ -507,6 +536,7 @@ impl SchemeType {
     /// Fuzzy pinyin rules apply.
     pub const fn supports_fuzzy(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin => true,
             Self::Wubi
             | Self::JapaneseRomaji
@@ -522,6 +552,7 @@ impl SchemeType {
     /// Typo autocorrection applies and its outcomes are learned.
     pub const fn supports_autocorrect(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin => true,
             Self::Shuangpin
             | Self::Wubi
@@ -538,6 +569,7 @@ impl SchemeType {
     /// 九键网格能拼出该方案的音节：全拼用拼音九宫格，注音用注音九键。
     pub const fn nine_key(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Zhuyin => true,
             Self::Shuangpin
             | Self::Wubi
@@ -553,6 +585,7 @@ impl SchemeType {
     /// The scheme has a helpcode switch and its candidates carry helpcode annotations.
     pub const fn helpcode(self) -> bool {
         match self {
+            Self::XiaoheYinxing => false,
             Self::Quanpin | Self::Shuangpin => true,
             Self::Wubi
             | Self::JapaneseRomaji
@@ -574,7 +607,7 @@ pub struct SchemeSet(u16);
 
 impl SchemeSet {
     /// 序号最大的方案。加方案时改这里，`scheme_set_all_covers_every_scheme` 会在漏改时失败。
-    const LAST: SchemeType = SchemeType::Stroke;
+    const LAST: SchemeType = SchemeType::XiaoheYinxing;
     /// 全部方案：序号 0 到 [`Self::LAST`] 的每一位。
     pub const ALL: Self = Self((1 << (Self::LAST as u16 + 1)) - 1);
     pub const EMPTY: Self = Self(0);
@@ -1921,7 +1954,7 @@ mod tests {
         assert_eq!(SchemeType::from_u8(9), Some(SchemeType::Stroke));
         assert_eq!(SchemeType::Stroke.name(), "stroke");
         assert!(!SchemeType::Stroke.is_pinyin());
-        assert_eq!(SchemeType::from_u8(10), None);
+        assert_eq!(SchemeType::from_u8(11), None);
     }
 
     // 笔画逐项照抄粤拼的取值，只有两处不同：笔画没有音节，所以不接受 `'` 分隔；预编辑画的是笔画字形，所以和注音一样由 `reading` 带给宿主。

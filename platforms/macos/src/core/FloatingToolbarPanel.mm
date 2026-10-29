@@ -1060,7 +1060,7 @@ static void MSIMELogToolbarAction(const char *action, BOOL hasDelegate, id sende
     traditionalChineseOutputEnabled:(BOOL)traditionalChineseOutputEnabled
 {
     NSDictionary<NSString *, NSString *> *schemeBadges =
-        @{@"shuangpin": @"双", @"wubi": @"五", @"japanese": @"日", @"korean": @"한", @"cantonese": @"粤", @"zhuyin": @"注", @"vietnamese": @"越", @"tibetan": @"ཀ", @"stroke": @"笔"};
+        @{@"shuangpin": @"双", @"wubi": @"五", @"japanese": @"日", @"korean": @"한", @"cantonese": @"粤", @"zhuyin": @"注", @"vietnamese": @"越", @"tibetan": @"ཀ", @"stroke": @"笔", @"xiaohe_yinxing": @"鹤"};
     NSString *inputModeTitle = capsLock ? @"A" :
         (englishInputMode ? @"英" : (englishCandidateMode ? @"En" : (schemeBadges[scheme] ?: @"中")));
     _inputModeButton.title = inputModeTitle;

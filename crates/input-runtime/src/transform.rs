@@ -466,7 +466,8 @@ mod desktop {
         fn transform_ready(&self) -> bool {
             let snapshot = &self.cached;
             let count = snapshot.candidates.len();
-            !self.plugins.suspended
+            !(snapshot.scheme == 10 && snapshot.local_mode == "none" && !snapshot.dedicated_english)
+                && !self.plugins.suspended
                 && count > 0
                 && snapshot.candidate_codes.len() == count
                 && snapshot.candidate_annotations.len() == count
@@ -703,7 +704,8 @@ mod desktop {
 
         /// 这一次能不能插行：列表能变换，本地模式 `none`，没有暂存的词段，不是九键、宫格或联想。
         fn inserts_allowed(&self) -> bool {
-            self.cached.local_mode == "none"
+            self.cached.scheme != 10
+                && self.cached.local_mode == "none"
                 && self.phrase_prefix.is_empty()
                 && !self.cached.nine_key
                 && self.cached.key_grid.is_none()

@@ -47,6 +47,13 @@ void require(bool condition, const char *message) {
 
 int main() {
     @autoreleasepool {
+        require([MSIMEInputModeID(MSIMEInputModeFor(NO, @"xiaohe_yinxing")) isEqualToString:MSIMEXiaoheInputModeID], "Xiaohe mode identifier mismatch");
+        require(MSIMEInputModeForID(MSIMEXiaoheInputModeID) == MSIMEInputMode::Xiaohe, "Xiaohe mode does not round-trip");
+        require([MSIMESchemeForInputMode(MSIMEInputMode::Xiaohe) isEqualToString:@"xiaohe_yinxing"], "Xiaohe scheme mismatch");
+        require(MSIMEIsOptInInputModeID(MSIMEXiaoheInputModeID), "Xiaohe must be opt-in");
+    }
+
+    @autoreleasepool {
         // 版本身份：没有 MSIMEEdition 的 Info.plist（full 的，以及不是 bundle 的测试进程）每个值都是 full 今天的那个；声明了版本的取 plist 里的值。
         NSDictionary *wubi = @{@"MSIMEEdition": @"wubi", @"CFBundleIdentifier": @"app.msime.inputmethod.wubi",
                                @"MSIMEInputSchemes": @[@"wubi"], @"MSIMEDefaultScheme": @"wubi",
@@ -339,7 +346,7 @@ int main() {
                 "The new modes do not use the identifiers Info.plist.in declares.");
         require(!MSIMEIsOptInInputModeID(MSIMEChineseInputModeID) && !MSIMEIsOptInInputModeID(MSIMEKoreanInputModeID) && !MSIMEIsOptInInputModeID(nil),
                 "A mode every install enables was treated as opt-in.");
-        require([MSIMEInputSchemeNames() isEqualToArray:@[@"quanpin", @"shuangpin", @"wubi", @"japanese", @"korean", @"cantonese", @"zhuyin", @"vietnamese", @"tibetan", @"stroke"]],
+        require([MSIMEInputSchemeNames() isEqualToArray:@[@"quanpin", @"shuangpin", @"wubi", @"japanese", @"korean", @"cantonese", @"zhuyin", @"vietnamese", @"tibetan", @"stroke", @"xiaohe_yinxing"]],
                 "The scheme names are not in the Engine's wire order.");
         // 菜单名和「添加」对话框里的语言与 InfoPlist.strings、Info.plist.in 和共享设置页的表一致。
         require([MSIMEInputModeMenuName(MSIMETibetanInputModeID) isEqualToString:@"水杉输入法 · 藏"] &&

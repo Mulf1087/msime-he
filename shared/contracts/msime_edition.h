@@ -47,7 +47,7 @@
 #define MSIME_EDITION_DEFAULT_SCHEME "quanpin"
 #define MSIME_EDITION_DEFAULT_SCHEME_W L"quanpin"
 #define MSIME_EDITION_WUBI_MIXED_PINYIN_DEFAULT 0
-#define MSIME_EDITION_INPUT_SCHEMES "quanpin", "shuangpin", "wubi", "japanese", "korean", "cantonese", "zhuyin", "vietnamese", "tibetan", "stroke"
+#define MSIME_EDITION_INPUT_SCHEMES "quanpin", "shuangpin", "wubi", "japanese", "korean", "cantonese", "zhuyin", "vietnamese", "tibetan", "stroke", "xiaohe_yinxing"
 #define MSIME_EDITION_TEMPORARY_JAPANESE 1
 #define MSIME_EDITION_HANDWRITING 1
 #elif defined(MSIME_EDITION_PINYIN)

@@ -14,6 +14,7 @@ constexpr int Zhuyin = 6;
 constexpr int Vietnamese = 7;
 constexpr int Tibetan = 8;
 constexpr int Stroke = 9;
+constexpr int XiaoheYinxing = 10;
 
 // ---- Host-only traits ----
 
@@ -38,16 +39,16 @@ constexpr bool EditsSentence(int scheme) { return scheme == Quanpin || scheme ==
 // ---- Engine traits the view does not publish; each mirrors the `SchemeType` predicate of the same name ----
 
 // `commits_on_blur`: 离开组字（失去焦点、切换方案或模式、把导航键交给应用）时把组字写出去，而不是丢弃。
-constexpr bool CommitsOnBlur(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan; }
+constexpr bool CommitsOnBlur(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == XiaoheYinxing; }
 
 // `locks_caret`: 光标固定在组字末尾，没有可供 Ctrl+Backspace 和 Ctrl+Left/Right 编辑的分段。
-constexpr bool LocksCaret(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan; }
+constexpr bool LocksCaret(int scheme) { return scheme == Korean || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == XiaoheYinxing; }
 
 // `uses_chinese_punctuation`: 标点走中文标点表。韩文、越南文和藏文不论中文标点开关怎么设都写半角 ASCII 标点。
 constexpr bool UsesChinesePunctuation(int scheme)
 {
     return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese ||
-           scheme == Zhuyin || scheme == Stroke;
+           scheme == Zhuyin || scheme == Stroke || scheme == XiaoheYinxing;
 }
 
 // `host_smart_punctuation`: the reversible smart punctuation gestures (space-to-ASCII, repeat-to-Chinese) may run.
@@ -60,9 +61,16 @@ constexpr bool HostSmartPunctuation(int scheme)
 constexpr bool WidensFullWidth(int scheme)
 {
     return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Cantonese ||
-           scheme == Zhuyin || scheme == Stroke;
+           scheme == Zhuyin || scheme == Stroke || scheme == XiaoheYinxing;
 }
 
 // `shows_glosses`: candidates may carry translation glosses.
 constexpr bool ShowsGlosses(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Korean; }
+// 音形固定五项分页，避免显示页与固定码表选择发生分歧。
+constexpr unsigned CandidatePageSize(int scheme, unsigned preferred) { return scheme == XiaoheYinxing ? 5 : preferred; }
+constexpr bool AllowsAdaptiveCandidates(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Korean || scheme == Cantonese || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == Stroke; }
+constexpr bool AllowsExpandedCandidates(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Korean || scheme == Cantonese || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == Stroke; }
+constexpr bool XiaoheCancelKey(int scheme, unsigned key, bool flagsChanged, bool composing) {
+    return scheme == XiaoheYinxing && composing && ((flagsChanged && key == 60) || (!flagsChanged && key == 48));
+}
 } // namespace msime::mac::scheme

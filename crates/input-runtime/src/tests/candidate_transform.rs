@@ -1034,3 +1034,29 @@ fn wubi_top_commit_takes_the_engines_first_row_past_an_inserted_one() {
     assert!(topped.commit.unwrap().starts_with('工'));
     assert_eq!(harness.runtime.engine.picks, [0]);
 }
+
+#[test]
+fn xiaohe_fixed_candidates_ignore_live_and_replayed_script_operations() {
+    let mut engine = TransformEngine::new(&FIVE);
+    engine.scheme = 10;
+    let mut h = Harness::new(
+        engine,
+        vec![inserting(&[3, 1], &[2], vec![insert(1, "🙂", "表情")])],
+    );
+    h.key(b'a');
+    assert_eq!(h.shown(), FIVE);
+    assert_eq!(h.calls(), 0);
+    h.runtime.refresh_online_candidates().unwrap();
+    assert_eq!(h.shown(), FIVE);
+    assert_eq!(h.calls(), 0);
+}
+
+#[test]
+fn xiaohe_semicolon_selects_second_on_current_page() {
+    let mut engine = TransformEngine::new(&["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛"]);
+    engine.scheme = 10;
+    let mut h = Harness::new(engine, vec![]);
+    h.key(b'a');
+    h.runtime.dispatch(Action::NextPage).unwrap();
+    assert_eq!(h.key(b';').commit.as_deref(), Some("庚"));
+}

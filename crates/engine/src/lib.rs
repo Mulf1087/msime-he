@@ -44,6 +44,7 @@ pub mod vietnamese;
 #[cfg(all(target_family = "wasm", target_os = "unknown"))]
 pub mod web;
 mod wubi;
+pub mod xiaohe;
 pub mod zhuyin;
 
 pub use error::{EngineError, Result};

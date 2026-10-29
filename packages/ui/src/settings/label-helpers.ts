@@ -39,6 +39,8 @@ export function schemeTitle(scheme: InputScheme): string {
       return "藏文";
     case "stroke":
       return "笔画";
+    case "xiaohe_yinxing":
+      return "小鹤音形";
     default: {
       const unhandled: never = scheme;
       return unhandled;

@@ -1690,8 +1690,10 @@ fn scheme_eight_is_tibetan_and_needs_no_dictionary() {
     let space = session.command(Command::CommitCandidate).unwrap();
     assert!(space.handled);
     assert_eq!(space.commit, "བོད་");
-    value.scheme = 10;
-    let error = Session::new(&value).err().expect("scheme ten");
+    value.scheme = 11;
+    let error = Session::new(&value)
+        .err()
+        .expect("unsupported scheme eleven");
     assert_eq!(
         error.to_string(),
         crate::diagnostics::UNSUPPORTED_INPUT_SCHEME

@@ -448,7 +448,8 @@ impl InputSession {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke => {}
+            | SchemeType::Stroke
+            | SchemeType::XiaoheYinxing => {}
             // Wubi codes are not spellings a cloud provider understands, and wubi providers cannot take dynamic rows.
             SchemeType::Wubi => state.cache_key = Cow::Borrowed(&request.normalized_input),
             SchemeType::Shuangpin => {

@@ -29,6 +29,7 @@ pub enum Scheme {
     Vietnamese(VietnameseScheme),
     Tibetan(TibetanScheme),
     Stroke(StrokeScheme),
+    Xiaohe(crate::xiaohe::scheme::XiaoheScheme),
 }
 
 impl Scheme {
@@ -63,6 +64,9 @@ impl Scheme {
             SchemeType::Tibetan => Self::Tibetan(TibetanScheme::new()),
             // 笔画方案自己不持有 `msime-stroke.db`：词典留在 registry，查询时按请求读。
             SchemeType::Stroke => Self::Stroke(StrokeScheme::new()),
+            SchemeType::XiaoheYinxing => {
+                Self::Xiaohe(crate::xiaohe::scheme::XiaoheScheme::default())
+            }
         })
     }
 
@@ -78,6 +82,7 @@ impl Scheme {
             Self::Vietnamese(_) => SchemeType::Vietnamese,
             Self::Tibetan(_) => SchemeType::Tibetan,
             Self::Stroke(_) => SchemeType::Stroke,
+            Self::Xiaohe(_) => SchemeType::XiaoheYinxing,
         }
     }
 
@@ -93,6 +98,7 @@ impl Scheme {
             Self::Vietnamese(scheme) => scheme.reset(),
             Self::Tibetan(scheme) => scheme.reset(),
             Self::Stroke(scheme) => scheme.reset(),
+            Self::Xiaohe(scheme) => scheme.reset(),
         }
     }
 
@@ -109,6 +115,7 @@ impl Scheme {
             Self::Vietnamese(scheme) => scheme.handle_key(key),
             Self::Tibetan(scheme) => scheme.handle_key(key),
             Self::Stroke(scheme) => scheme.handle_key(key),
+            Self::Xiaohe(scheme) => scheme.handle_key(key),
         }
     }
 
@@ -124,6 +131,7 @@ impl Scheme {
             Self::Vietnamese(scheme) => scheme.build_request(),
             Self::Tibetan(scheme) => scheme.build_request(),
             Self::Stroke(scheme) => scheme.build_request(),
+            Self::Xiaohe(scheme) => scheme.build_request(),
         }
     }
 
@@ -137,6 +145,7 @@ impl Scheme {
             Self::Cantonese(scheme) => scheme.build_request_into(request),
             Self::Zhuyin(scheme) => scheme.build_request_into(request),
             Self::Stroke(scheme) => scheme.build_request_into(request),
+            Self::Xiaohe(scheme) => scheme.build_request_into(request),
             Self::Vietnamese(scheme) => scheme.build_request_into(request),
             Self::Tibetan(scheme) => scheme.build_request_into(request),
         }
@@ -155,6 +164,7 @@ impl Scheme {
             Self::Vietnamese(scheme) => scheme.preedit(),
             Self::Tibetan(scheme) => scheme.preedit(),
             Self::Stroke(scheme) => scheme.preedit(),
+            Self::Xiaohe(scheme) => scheme.preedit(),
         }
     }
 
@@ -171,6 +181,7 @@ impl Scheme {
             Self::Vietnamese(scheme) => scheme.set_raw_input(raw, raw_with_cases),
             Self::Tibetan(scheme) => scheme.set_raw_input(raw, raw_with_cases),
             Self::Stroke(scheme) => scheme.set_raw_input(raw),
+            Self::Xiaohe(scheme) => scheme.set_raw_input(raw),
         }
     }
 

@@ -64,6 +64,8 @@ pub enum InputScheme {
     Tibetan,
     /// 笔画：按横竖撇点折（h s p n z，x 为通配）笔顺输入单字，读取 `msime-stroke.db`。是中文方案。Engine 序号为 9。
     Stroke,
+    /// 独立小鹤音形码表方案，仅 macOS 宿主提供。
+    XiaoheYinxing,
 }
 
 /// 桌面应用（Windows、macOS、Linux）检查更新时跟的发布通道：稳定版只认正式发布，测试版另外接受 develop 发出的 `-beta` 预发布，每日构建再接受滚动的 `nightly` 发布。选择规则在 `msime_client_services::update_check`，macOS 的 Sparkle 按它选 appcast。
@@ -1128,6 +1130,7 @@ pub enum ChineseScheme {
     Cantonese,
     Zhuyin,
     Stroke,
+    XiaoheYinxing,
 }
 
 impl ChineseScheme {
@@ -1140,6 +1143,7 @@ impl ChineseScheme {
             InputScheme::Cantonese => Some(Self::Cantonese),
             InputScheme::Zhuyin => Some(Self::Zhuyin),
             InputScheme::Stroke => Some(Self::Stroke),
+            InputScheme::XiaoheYinxing => Some(Self::XiaoheYinxing),
             InputScheme::Japanese
             | InputScheme::Korean
             | InputScheme::Vietnamese
@@ -1157,6 +1161,7 @@ impl From<ChineseScheme> for InputScheme {
             ChineseScheme::Cantonese => Self::Cantonese,
             ChineseScheme::Zhuyin => Self::Zhuyin,
             ChineseScheme::Stroke => Self::Stroke,
+            ChineseScheme::XiaoheYinxing => Self::XiaoheYinxing,
         }
     }
 }

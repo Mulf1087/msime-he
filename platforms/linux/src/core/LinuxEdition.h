@@ -26,7 +26,7 @@
 #define MSIME_EDITION_TAURI_IDENTIFIER "app.msime.linux"
 #define MSIME_EDITION_TELEMETRY_DIRECTORY "msime"
 #define MSIME_EDITION_DEFAULT_SCHEME "quanpin"
-#define MSIME_EDITION_INPUT_SCHEMES "quanpin", "shuangpin", "wubi", "japanese", "korean", "cantonese", "zhuyin", "vietnamese", "tibetan", "stroke"
+#define MSIME_EDITION_INPUT_SCHEMES "quanpin", "shuangpin", "wubi", "japanese", "korean", "cantonese", "zhuyin", "vietnamese", "tibetan", "stroke", "xiaohe_yinxing"
 #define MSIME_EDITION_TEMPORARY_JAPANESE 1
 #define MSIME_EDITION_HANDWRITING 1
 #elif defined(MSIME_EDITION_PINYIN)

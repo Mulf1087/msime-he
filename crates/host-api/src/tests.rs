@@ -3104,8 +3104,8 @@ fn chinese_english_spacing_follows_the_switch_and_the_commit_mode() {
             "{local_mode}"
         );
     }
-    // 日文、韩文方案不加。
-    for scheme in [3, 4] {
+    // 日文、韩文与固定码表音形方案保留原文。
+    for scheme in [3, 4, 10] {
         assert_eq!(
             completed_commit(handle, text, scheme, "none", false).as_deref(),
             Some(text),
@@ -22256,4 +22256,34 @@ fn world_clock_validates_and_forwards_offline_requests() {
         )["ok"],
         false
     );
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn xiaohe_missing_table_cannot_replace_the_active_preferences() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().to_string_lossy().into_owned();
+    let save = |revision, document: &str| {
+        read(unsafe {
+            msime_client_save_preferences(
+                path.as_ptr(),
+                path.len(),
+                revision,
+                document.as_ptr(),
+                document.len(),
+            )
+        })
+    };
+    let initial = serde_json::to_string(&PreferencesSnapshot::default()).unwrap();
+    assert_eq!(save(0, &initial)["ok"], true);
+    let file = directory.path().join("preferences.json");
+    let before = std::fs::read(&file).unwrap();
+    let mut document = serde_json::to_value(PreferencesSnapshot::default()).unwrap();
+    document["preferences"]["scheme"] = json!("xiaohe_yinxing");
+    assert_eq!(save(1, &document.to_string())["ok"], false);
+    assert_eq!(std::fs::read(&file).unwrap(), before);
+    let user = directory.path().join("user");
+    std::fs::create_dir(&user).unwrap();
+    msime_engine::xiaohe::import_tsv(&user, "# msime-xiaohe-yinxing-v1\nab\t1\t甲\n").unwrap();
+    assert_eq!(save(1, &document.to_string())["ok"], true);
 }

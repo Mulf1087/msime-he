@@ -879,10 +879,14 @@ impl HostSession {
             self.state_root.as_deref(),
         );
         // 引擎按宿主的每页候选数决定全长组要不要并入补全词；和下面交给 runtime 的值同源。
-        let page_size = host_page_size(
-            self.page_size_override
-                .unwrap_or(preferences.candidate_page_size),
-        );
+        let page_size = if scheme == InputScheme::XiaoheYinxing {
+            5
+        } else {
+            host_page_size(
+                self.page_size_override
+                    .unwrap_or(preferences.candidate_page_size),
+            )
+        };
         options.first_page_rows = usize::from(page_size);
         // Unconditional, because `Runtime::crop_alternative_readings` runs whether or not a model is
         // attached: the host always shows one whole-sentence reading. Asking for the rest only ever
@@ -1710,6 +1714,7 @@ fn scheme_code(scheme: InputScheme) -> u8 {
         InputScheme::Vietnamese => 7,
         InputScheme::Tibetan => 8,
         InputScheme::Stroke => 9,
+        InputScheme::XiaoheYinxing => 10,
     }
 }
 
@@ -2254,7 +2259,11 @@ impl HostOptions {
             cache: self.cache,
             dictionaries: self.dictionaries,
             // 词库维护类操作也走这里：`HostOptions` 没有 `page_size_override`，只能用偏好值。
-            first_page_rows: usize::from(host_page_size(self.preferences.candidate_page_size)),
+            first_page_rows: if scheme == InputScheme::XiaoheYinxing {
+                5
+            } else {
+                usize::from(host_page_size(self.preferences.candidate_page_size))
+            },
             scheme: scheme_code(scheme),
             enabled_schemes: engine_schemes(edition),
             shuangpin_profile: profile_code(self.preferences.shuangpin_profile),

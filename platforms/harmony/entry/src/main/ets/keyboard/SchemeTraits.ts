@@ -16,6 +16,7 @@ export class SchemeTraits {
   static readonly VIETNAMESE: number = 7;
   static readonly TIBETAN: number = 8;
   static readonly STROKE: number = 9;
+  static readonly XIAOHE_YINXING: number = 10;
 
   /** The Engine's wire names, indexed by scheme number. */
   static readonly NAMES: string[] = [
@@ -29,6 +30,7 @@ export class SchemeTraits {
     "vietnamese",
     "tibetan",
     "stroke",
+    "xiaohe_yinxing",
   ];
 
   /** The scheme number for a wire name, or -1 for a name no build knows, which every predicate answers false for. */
@@ -45,12 +47,18 @@ export class SchemeTraits {
       SchemeTraits.CANTONESE,
       SchemeTraits.STROKE,
       SchemeTraits.ZHUYIN,
+      SchemeTraits.XIAOHE_YINXING,
     ].includes(scheme);
   }
 
   /** The Simplified-to-Traditional switch applies; Cantonese and Zhuyin are Traditional as typed, and Stroke writes each character as msime-stroke.db stores it. */
   static scriptConversionApplies(scheme: number): boolean {
-    return [SchemeTraits.QUANPIN, SchemeTraits.SHUANGPIN, SchemeTraits.WUBI].includes(scheme);
+    return [
+      SchemeTraits.QUANPIN,
+      SchemeTraits.SHUANGPIN,
+      SchemeTraits.WUBI,
+      SchemeTraits.XIAOHE_YINXING,
+    ].includes(scheme);
   }
 
   /** 标点走中文标点表；韩语、越南语和藏文写 ASCII 标点。 */
@@ -63,6 +71,7 @@ export class SchemeTraits {
       SchemeTraits.CANTONESE,
       SchemeTraits.STROKE,
       SchemeTraits.ZHUYIN,
+      SchemeTraits.XIAOHE_YINXING,
     ].includes(scheme);
   }
 
@@ -87,6 +96,7 @@ export class SchemeTraits {
       SchemeTraits.CANTONESE,
       SchemeTraits.STROKE,
       SchemeTraits.ZHUYIN,
+      SchemeTraits.XIAOHE_YINXING,
     ].includes(scheme);
   }
 
@@ -102,6 +112,7 @@ export class SchemeTraits {
       SchemeTraits.ZHUYIN,
       SchemeTraits.VIETNAMESE,
       SchemeTraits.TIBETAN,
+      SchemeTraits.XIAOHE_YINXING,
     ].includes(scheme);
   }
 
@@ -127,6 +138,7 @@ export class SchemeTraits {
       SchemeTraits.ZHUYIN,
       SchemeTraits.VIETNAMESE,
       SchemeTraits.TIBETAN,
+      SchemeTraits.XIAOHE_YINXING,
     ].includes(scheme);
   }
 }
