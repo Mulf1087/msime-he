@@ -3545,7 +3545,12 @@ static NSString *SkinFilesIdentity(const std::vector<std::string> &paths) {
     _wubiCard.hidden = storedScheme != 2;
     // 拼音匹配 is on another page than the scheme that decides whether it does anything, so the card says which scheme is selected rather than leaving a disabled group with no cause in sight.
     const BOOL pinyinMatching = storedScheme <= 2;
-    NSString *schemeName = pinyinMatching ? nil : @[@"日语", @"韩语", @"粤拼", @"注音", @"越南语", @"藏文", @"笔画"][storedScheme - 3];
+    // 这里也会在输入法后台加载偏好时执行，即使提示标签尚未创建。
+    // 按稳定的方案名查说明，不能用新方案编号读取旧的连续名称数组。
+    NSString *schemeName = pinyinMatching ? nil : (@{
+        @"japanese": @"日语", @"korean": @"韩语", @"cantonese": @"粤拼", @"zhuyin": @"注音",
+        @"vietnamese": @"越南语", @"tibetan": @"藏文", @"stroke": @"笔画", @"xiaohe_yinxing": @"小鹤音形"
+    }[self.inputScheme] ?: @"其他方案");
     _pinyinMatchingSchemeLabel.stringValue = pinyinMatching ? @"" : [NSString stringWithFormat:@"当前方案为%@，模糊音与全拼纠错只作用于拼音查询，在%@下不生效。", schemeName, schemeName];
     _pinyinMatchingSchemeLabel.hidden = pinyinMatching;
     NSDictionary *profileIndexes = @{@"xiaohe": @0, @"ziranma": @1, @"shoudao": @2, @"microsoft": @3, @"smart_abc": @4};

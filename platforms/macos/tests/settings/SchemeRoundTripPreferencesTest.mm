@@ -77,6 +77,19 @@ int main(void)
         assert([merged[@"last_chinese_scheme"] isEqual:@"stroke"] && [preferences.lastChineseScheme isEqual:@"stroke"]);
         preferences.inputScheme = @"quanpin";
 
+        // 输入法没有打开原生设置窗口，也会在加载共享偏好时刷新控件。
+        // 新增方案的编号不能被用作旧名称数组的下标；这里走实际崩溃的加载路径。
+        [preferences applySharedInputPreferences:@{@"scheme": @"xiaohe_yinxing", @"last_chinese_scheme": @"xiaohe_yinxing"}];
+        assert([preferences.inputScheme isEqual:@"xiaohe_yinxing"]);
+        assert([preferences.lastChineseScheme isEqual:@"xiaohe_yinxing"]);
+        merged = [preferences sharedPreferencesByMerging:@{}];
+        assert([merged[@"scheme"] isEqual:@"xiaohe_yinxing"] && [merged[@"last_chinese_scheme"] isEqual:@"xiaohe_yinxing"]);
+        [preferences applySharedInputPreferences:@{@"scheme": @"japanese", @"last_chinese_scheme": @"xiaohe_yinxing"}];
+        assert([preferences.lastChineseScheme isEqual:@"xiaohe_yinxing"]);
+        [preferences applySharedInputPreferences:@{@"scheme": @"xiaohe_yinxing"}];
+        assert([preferences.inputScheme isEqual:@"xiaohe_yinxing"]);
+        preferences.inputScheme = @"quanpin";
+
         // 共享偏好选了自定义双拼后，原生设置保存其它字段不能把它悄悄改回旧的本机方案。
         preferences.shuangpinProfile = @"ziranma";
         [preferences applySharedInputPreferences:@{@"shuangpin_profile": @"custom"}];
