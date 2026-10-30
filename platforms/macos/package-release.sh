@@ -22,6 +22,7 @@
 #   MSIME_REQUIRE_OFFICIAL_PLUGINS 1 refuses to package without the official plugin packs in target/plugin-packs (scripts/build-official-plugins.sh builds them; release-macos.yml sets it); otherwise the bundle carries them when they are there
 #   MSIME_REQUIRE_WORDBOOKS       1 时 target/wordbooks 里没有锁文件 resources/wordbook.lock.json 列出的全部内置词书和 wordbooks-NOTICE.txt 就不打包（python3 scripts/fetch_wordbooks.py 生成它们；release-macos.yml 和 ci-macos-package.yml 设它）；不设时有就带上，没有时背单词只列用户导入的词表
 #   MSIME_XIAOHE_SEED             个人定制包可选的音形 SQLite 源表；仅 full 版本随包携带，首次准备默认音形，升级补缺表且不改已有偏好。源码和公共发布不带私人表。
+#   MSIME_LOCAL_CORE_RESOURCES    仅本地定制包可用：复用上次完整安装且已按锁校验的核心资源；省略与安装包无关的按需资源下载预检，避免临时网络故障阻塞离线打包。
 #   CARGO_TARGET_DIR              defaults to target/ in the repository
 #   MSIME_MACOS_BUILD_DIR         CMake build tree; defaults to target/macos-release
 #   MACOS_SIGNING_IDENTITY        a "Developer ID Application: ... (TEAMID)" identity in the keychain. Without it everything is signed ad-hoc: the package builds and the settings app runs, but macOS will not register the embedded input method as an input source (see scripts/install.sh)
@@ -247,7 +248,13 @@ create_dmg() {
 
 # ---- Core dictionaries ----
 # install_resources prints progress on stderr and the verified directory as its last stdout line. Each edition's stage-resources.sh run (below) re-verifies it and stages target/macos/EngineResources, which tauri.macos.conf.json embeds.
-resources="$(cargo run --quiet --locked -p msime-client-core --example install_resources -- "$work/desktop-resources" | tail -n 1)"
+if [ -n "${MSIME_LOCAL_CORE_RESOURCES:-}" ]; then
+  resources="$MSIME_LOCAL_CORE_RESOURCES"
+  cargo run --quiet --locked -p msime-client-core --example verify_resources -- \
+    --omit-on-demand --platform macos --edition full "$resources" >/dev/null
+else
+  resources="$(cargo run --quiet --locked -p msime-client-core --example install_resources -- "$work/desktop-resources" | tail -n 1)"
+fi
 
 # ---- Speech runtime ----
 # 输入法和 msime-voice-local 开着 hardened runtime，库验证只加载同一 Team ID 签名的库。resources/voice-runtime-macos.lock.json 固定了用本项目 Developer ID 重签的运行库、并且这次也用这个 Team ID 签名时，运行库不进包，由设置应用作为 voice-runtime-macos 资源包下载；锁文件还没固定（重签的运行库还没发布）、没有签名身份（ad-hoc）或身份属于别的团队时照旧内置，否则装出来的输入法加载不了下载的库。
@@ -266,7 +273,12 @@ on_demand_packs=(japanese wubi language-dictionaries handwriting settled-model)
 if [ "$omit_voice_runtime" = 1 ]; then
   on_demand_packs+=(voice-runtime-macos)
 fi
-cargo run --quiet --locked -p msime-client-providers --example install_resource_pack -- "$work/pack-check" "${on_demand_packs[@]}" >/dev/null
+if [ -z "${MSIME_LOCAL_CORE_RESOURCES:-}" ]; then
+  cargo run --quiet --locked -p msime-client-providers --example install_resource_pack -- "$work/pack-check" "${on_demand_packs[@]}" >/dev/null
+elif [ "$omit_voice_runtime" = 1 ]; then
+  echo '本地离线资源模式不能省略语音运行库；请使用对应签名身份的在线打包流程' >&2
+  exit 1
+fi
 if [ "$omit_voice_runtime" = 1 ]; then
   # 下载到的运行库必须是这个团队签的、两种架构都在：否则省略之后的输入法在任何一台 Mac 上都加载不了它。
   downloaded_runtime="$work/pack-check/resource-packs/voice-runtime-macos/libsherpa-onnx-c-api.dylib"
