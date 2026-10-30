@@ -26,7 +26,7 @@ public final class InputSchemeTraitsSmoke {
         table("usesChinesePunctuation", InputSchemeTraits::usesChinesePunctuation, Set.of(0, 1, 2, 3, 5, 6, 9, 10));
         table("widensFullWidth", InputSchemeTraits::widensFullWidth, Set.of(0, 1, 2, 3, 5, 6, 9, 10));
         table("opensLocalModes", InputSchemeTraits::opensLocalModes, Set.of(0, 1));
-        table("showsGlosses", InputSchemeTraits::showsGlosses, Set.of(0, 1, 2, 4));
+        table("showsGlosses", InputSchemeTraits::showsGlosses, Set.of(0, 1, 2, 4, 10));
         table("commitsOnBlur", InputSchemeTraits::commitsOnBlur, Set.of(4, 6, 7, 8, 10));
         table("drawsReading", InputSchemeTraits::drawsReading, Set.of(3, 4, 6, 9));
         table("hasOpenableCandidateList", InputSchemeTraits::hasOpenableCandidateList, Set.of(4, 6));
