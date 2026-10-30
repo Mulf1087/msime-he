@@ -77,6 +77,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 /// `msime_client_account` 在 #8201 新增的操作。
 mod account_ops;
 mod bounded_file;
+mod bundled_xiaohe;
 mod chinese_english_spacing;
 /// 多分类自动云同步的驱动；C 入口在 `ffi::cloud_sync`。与 `cloud_dictionary` 一样和 C 入口模块同名，所以公开，免得遮住 `ffi` 的同名模块。
 pub mod cloud_sync;
@@ -2787,6 +2788,9 @@ fn prepare_shipped_host_configuration(
     let resources = without_verbatim_prefix(std::fs::canonicalize(resources)?);
     let state_root = std::path::absolute(state_root)?;
     verify_resources_once(&resources, specification, &state_root, on_demand)?;
+    if edition.is_full() && bundled_xiaohe::install(&resources, &state_root)? {
+        bundled_xiaohe::select_for_first_install(&state_root)?;
+    }
     // 偏好要在建 `user/dictionaries` 之前读：没有偏好文件时，以前的版本准备过的状态目录按升级前的默认方案，新装按现在的默认方案，建了代次目录就分不清了。
     let preferences = edition_preferences(&state_root, edition)?;
     // 用户词库日志读不出是数据库时，代次准备会把它改名挪开、从空日志开始，否则回放每次都失败、宿主永远起不来。在这里先挪，好经诊断出口报出来；准备代次时再查一遍只是空操作。
@@ -2967,6 +2971,12 @@ fn refresh_options_file(
             }
         })?;
     let document: Value = serde_json::from_slice(&bytes)?;
+    // 当前词库代次无需更新也要补齐随包音形表；刷新不更改已有活动方案。
+    if let Some((resources, _, state)) = prepared_layout(&document) {
+        if Edition::of_host_options(&document).is_some_and(Edition::is_full) {
+            bundled_xiaohe::install(bundled.unwrap_or(resources), state)?;
+        }
+    }
     // 文档记录的版本，缺省是 full。新代次按同一个版本准备；`refreshed_layout` 只替换 `resources` 和 `dictionaries`，`edition` 键原样保留。
     let edition =
         Edition::of_host_options(&document).ok_or("runtime options name an unknown edition")?;

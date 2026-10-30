@@ -21,6 +21,7 @@
 #   MSIME_SPARKLE_ROOT            required; directory containing the pinned Sparkle.framework (see README.md)
 #   MSIME_REQUIRE_OFFICIAL_PLUGINS 1 refuses to package without the official plugin packs in target/plugin-packs (scripts/build-official-plugins.sh builds them; release-macos.yml sets it); otherwise the bundle carries them when they are there
 #   MSIME_REQUIRE_WORDBOOKS       1 时 target/wordbooks 里没有锁文件 resources/wordbook.lock.json 列出的全部内置词书和 wordbooks-NOTICE.txt 就不打包（python3 scripts/fetch_wordbooks.py 生成它们；release-macos.yml 和 ci-macos-package.yml 设它）；不设时有就带上，没有时背单词只列用户导入的词表
+#   MSIME_XIAOHE_SEED             个人定制包可选的音形 SQLite 源表；仅 full 版本随包携带，首次准备默认音形，升级补缺表且不改已有偏好。源码和公共发布不带私人表。
 #   CARGO_TARGET_DIR              defaults to target/ in the repository
 #   MSIME_MACOS_BUILD_DIR         CMake build tree; defaults to target/macos-release
 #   MACOS_SIGNING_IDENTITY        a "Developer ID Application: ... (TEAMID)" identity in the keychain. Without it everything is signed ad-hoc: the package builds and the settings app runs, but macOS will not register the embedded input method as an input source (see scripts/install.sh)
@@ -416,6 +417,11 @@ find target/macos -maxdepth 1 -name '*.app' -exec rm -rf {} +
 # ditto keeps the framework symlinks that cp -R and cmake -E copy_directory would flatten; a flattened Sparkle.framework cannot be sealed.
 ditto "$built_bundle" "target/macos/$bundle_name"
 staged_bundle="$(only target/macos/*.app)"
+# 清掉上次定制构建可能留下的基线；只有本轮明确指定源表才允许带入包。
+rm -rf "$staged_bundle/Contents/Resources/xiaohe-yinxing"
+if [ "$edition" = full ] && [ -n "${MSIME_XIAOHE_SEED:-}" ]; then
+  python3 platforms/macos/scripts/stage_xiaohe_seed.py "$MSIME_XIAOHE_SEED" "$staged_bundle/Contents/Resources"
+fi
 # 编出来的是 full 的 bundle；不是 full 的版本换上该版本的 Info.plist、InfoPlist.strings 和可执行文件名，签名在这之后。full 什么也不改。
 python3 "$edition_tool" apply --edition "$edition" "$staged_bundle"
 # 英文释义和音标表也随独立的 InputMethodKit bundle 安装。旧配置可能仍使用较早的 EngineResources，
@@ -507,6 +513,9 @@ if [ -d "$wordbooks" ]; then
   ditto "$wordbooks" "$app/Contents/Resources/wordbooks"
 fi
 # Without --deep, so the input method keeps the signature and entitlements it was given above; the outer signature seals it as a nested resource.
+if [ "$edition" = full ] && [ -n "${MSIME_XIAOHE_SEED:-}" ]; then
+  python3 platforms/macos/scripts/stage_xiaohe_seed.py "$MSIME_XIAOHE_SEED" "$app/Contents/Resources"
+fi
 sign "$app"
 codesign --verify --deep --strict "$app"
 
@@ -689,6 +698,12 @@ printf '%s\n' \
   '' \
   "只把「${display_name}」拖进「应用程序」而不打开它，系统里不会出现这个输入法。" \
   > "$stage/安装说明.txt"
+if [ "$edition" = full ] && [ -n "${MSIME_XIAOHE_SEED:-}" ]; then
+  printf '\n%s\n%s\n' \
+    '本个人定制包内置小鹤音形码表；新电脑首次打开应用时自动准备码表并默认音形。添加输入法后请选择「水杉输入法 · 小鹤音形」，sm＋空格得到“什么”，nirx 自动得到“你”。' \
+    '重装只补齐缺失码表，保留已有词库及个人偏好。无需另行导入；账号、密钥和历史输入不随包复制。' \
+    >> "$stage/安装说明.txt"
+fi
 dmg="$out_dir/$dmg_prefix-$version-$arch.dmg"
 rm -f "$dmg"
 # 用 ULMO（lzma）而不是 UDZO（zlib）：同样内容的 DMG 小约三分之一。ULMO 在 macOS 10.15 及以后都能挂载，而应用本身要求 13.0。DMG 创建之后才签名、公证和装订，事后再转换格式会丢掉签名，所以在创建时就选定格式。

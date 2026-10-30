@@ -13409,6 +13409,210 @@ fn prepared_options_record_only_a_non_full_edition_and_seed_its_first_preference
     );
 }
 
+// 私人表不进源码：用两个合成候选验证随包初始化、指纹检查与重装边界。
+fn bundled_xiaohe_fixture(resources: &Path) -> PathBuf {
+    let seed = resources.parent().unwrap().join("xiaohe-yinxing");
+    std::fs::create_dir_all(&seed).unwrap();
+    msime_engine::xiaohe::import_tsv(
+        &seed,
+        "# msime-xiaohe-yinxing-v1\nzz\t1\t合成\nzzzz\t1\t样例\n",
+    )
+    .unwrap();
+    let bytes = std::fs::read(seed.join("xiaohe-yinxing.db")).unwrap();
+    std::fs::write(
+        seed.join("manifest.json"),
+        serde_json::to_vec(&json!({
+            "format_version": 1, "sha256": hex::encode(Sha256::digest(&bytes)),
+            "size": bytes.len(), "entries": 2, "default_scheme": "xiaohe_yinxing"
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    seed
+}
+
+#[test]
+fn bundled_xiaohe_prepares_a_fresh_install_and_preserves_later_user_choices() {
+    let root = tempfile::tempdir().unwrap();
+    let resources = root.path().join("EngineResources");
+    let specification = synthetic_desktop_lock(&resources);
+    bundled_xiaohe_fixture(&resources);
+    let state = root.path().join("new-computer");
+    let prepare = || -> Value {
+        serde_json::from_str(
+            &prepare_shipped_host_configuration(
+                &resources,
+                &state,
+                &specification,
+                &[],
+                Edition::full(),
+            )
+            .unwrap(),
+        )
+        .unwrap()
+    };
+    let options = prepare();
+    assert_eq!(options["preferences"]["scheme"], "xiaohe_yinxing");
+    assert_eq!(
+        options["preferences"]["last_chinese_scheme"],
+        "xiaohe_yinxing"
+    );
+    let table =
+        msime_engine::xiaohe::XiaoheTable::open(&state.join("user/xiaohe-yinxing.db")).unwrap();
+    assert_eq!(table.query("zz").unwrap()[0].word, "合成");
+    drop(table);
+    let store = PreferencesStore::new(&state);
+    let mut snapshot = store.load().unwrap();
+    snapshot.preferences.scheme = InputScheme::Shuangpin;
+    snapshot.preferences.candidate_page_size = 7;
+    store.save(snapshot.revision, snapshot.preferences).unwrap();
+    msime_engine::xiaohe::import_tsv(
+        &state.join("user"),
+        "# msime-xiaohe-yinxing-v1\nzz\t1\t用户样例\n",
+    )
+    .unwrap();
+    let before = std::fs::read(state.join("preferences.json")).unwrap();
+    let options = prepare();
+    assert_eq!(options["preferences"]["scheme"], "shuangpin");
+    assert_eq!(
+        std::fs::read(state.join("preferences.json")).unwrap(),
+        before
+    );
+    let table =
+        msime_engine::xiaohe::XiaoheTable::open(&state.join("user/xiaohe-yinxing.db")).unwrap();
+    assert_eq!(table.query("zz").unwrap()[0].word, "用户样例");
+    drop(table);
+    // 用户只删除码表时，重新准备补齐它，但方案和其它偏好保持。
+    std::fs::remove_file(state.join("user/xiaohe-yinxing.db")).unwrap();
+    prepare();
+    assert_eq!(
+        std::fs::read(state.join("preferences.json")).unwrap(),
+        before
+    );
+    assert_eq!(
+        msime_engine::xiaohe::XiaoheTable::open(&state.join("user/xiaohe-yinxing.db"))
+            .unwrap()
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn bundled_xiaohe_rejects_a_changed_seed_before_selecting_the_scheme() {
+    let root = tempfile::tempdir().unwrap();
+    let resources = root.path().join("EngineResources");
+    let specification = synthetic_desktop_lock(&resources);
+    let seed = bundled_xiaohe_fixture(&resources);
+    std::fs::write(seed.join("xiaohe-yinxing.db"), b"damaged").unwrap();
+    let state = root.path().join("state");
+    assert!(prepare_shipped_host_configuration(
+        &resources,
+        &state,
+        &specification,
+        &[],
+        Edition::full()
+    )
+    .is_err());
+    assert!(!state.join("user/xiaohe-yinxing.db").exists());
+    assert!(!state.join("preferences.json").exists());
+}
+
+#[test]
+fn bundled_xiaohe_does_not_change_an_existing_pinyin_profile() {
+    let root = tempfile::tempdir().unwrap();
+    let resources = root.path().join("EngineResources");
+    let specification = synthetic_desktop_lock(&resources);
+    bundled_xiaohe_fixture(&resources);
+    let state = root.path().join("existing");
+    PreferencesStore::new(&state)
+        .write_first_document()
+        .unwrap();
+    let before = std::fs::read(state.join("preferences.json")).unwrap();
+    let document: Value = serde_json::from_str(
+        &prepare_shipped_host_configuration(
+            &resources,
+            &state,
+            &specification,
+            &[],
+            Edition::full(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(document["preferences"]["scheme"], "quanpin");
+    assert_eq!(
+        std::fs::read(state.join("preferences.json")).unwrap(),
+        before
+    );
+    assert_eq!(
+        msime_engine::xiaohe::XiaoheTable::open(&state.join("user/xiaohe-yinxing.db"))
+            .unwrap()
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn bundled_xiaohe_refresh_repairs_a_missing_table_without_rewriting_current_options() {
+    let root = tempfile::tempdir().unwrap();
+    let resources = root.path().join("EngineResources");
+    synthetic_desktop_lock(&resources);
+    bundled_xiaohe_fixture(&resources);
+    let state = root.path().join("state");
+    PreferencesStore::new(&state)
+        .write_first_document()
+        .unwrap();
+    let generation = Edition::full()
+        .resource_set()
+        .unwrap()
+        .generation()
+        .unwrap();
+    let options = state.join("runtime-options.json");
+    let bytes = serde_json::to_vec(&json!({
+        "resources": resources, "preferences_directory": state,
+        "user_data": state.join("user"),
+        "dictionaries": state.join("user/dictionaries").join(generation)
+    }))
+    .unwrap();
+    std::fs::write(&options, &bytes).unwrap();
+    let before = std::fs::read(state.join("preferences.json")).unwrap();
+    assert!(!refresh_host_options(&options).unwrap());
+    assert_eq!(
+        msime_engine::xiaohe::XiaoheTable::open(&state.join("user/xiaohe-yinxing.db"))
+            .unwrap()
+            .count(),
+        2
+    );
+    assert_eq!(std::fs::read(&options).unwrap(), bytes);
+    assert_eq!(
+        std::fs::read(state.join("preferences.json")).unwrap(),
+        before
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn bundled_xiaohe_never_follows_a_linked_user_directory() {
+    let root = tempfile::tempdir().unwrap();
+    let resources = root.path().join("EngineResources");
+    let specification = synthetic_desktop_lock(&resources);
+    bundled_xiaohe_fixture(&resources);
+    let state = root.path().join("state");
+    let outside = root.path().join("outside");
+    std::fs::create_dir_all(&state).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    std::os::unix::fs::symlink(&outside, state.join("user")).unwrap();
+    assert!(prepare_shipped_host_configuration(
+        &resources,
+        &state,
+        &specification,
+        &[],
+        Edition::full()
+    )
+    .is_err());
+    assert!(!outside.join("xiaohe-yinxing.db").exists());
+}
+
 /// 新装第一次准备时触屏键盘只有中文方案，这个结论写进第一份偏好文件，再次准备也不变；以前的版本准备过、用户却从没存过偏好的状态目录（有用户词库代次、没有偏好文件），准备时按以前的默认列表写下第一份文件，日文和韩文键盘升级后仍在。
 #[test]
 fn preparing_tells_a_fresh_install_from_an_upgrade_without_preferences() {
