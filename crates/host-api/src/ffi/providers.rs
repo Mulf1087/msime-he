@@ -39,6 +39,16 @@ pub extern "C" fn msime_client_online_query(handle: u64) -> *mut c_char {
                         &query.query_text,
                         &query.ai_context,
                     )
+                } else if query.scheme == msime_engine::SchemeType::XiaoheYinxing as u8 {
+                    preferences
+                        .xiaohe_cloud_candidates
+                        .then(|| {
+                            msime_client_core::cloud::candidates::build_xiaohe_request(
+                                &preferences.cloud_candidate_provider,
+                                &query.query_text,
+                            )
+                        })
+                        .flatten()
                 } else {
                     msime_client_core::cloud::candidates::build_request(
                         &preferences.cloud_candidate_provider,
@@ -46,8 +56,10 @@ pub extern "C" fn msime_client_online_query(handle: u64) -> *mut c_char {
                         query.scheme == msime_engine::SchemeType::JapaneseRomaji as u8,
                     )
                 };
-                if query.mode == msime_engine::OnlineInputMode::English {
-                    // 英文查询的引擎身份保持不变；服务不支持英文时只关闭本次云请求，不能连带拒绝 AI 回答。
+                if query.mode == msime_engine::OnlineInputMode::English
+                    || query.scheme == msime_engine::SchemeType::XiaoheYinxing as u8
+                {
+                    // 英文与音形都只向自定义服务发请求；服务未配置时关闭本次云请求。英文仍可独立接收 AI 回答。
                     cloud_candidates = query.cloud_request.is_some();
                 } else {
                     // 展开后超出边界时本次只用本地候选，不能让兼容分支改发默认 Google。

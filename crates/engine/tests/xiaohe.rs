@@ -57,6 +57,11 @@ fn session() -> (tempfile::TempDir, msime_engine::Session) {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("helpcodes")).unwrap();
     std::fs::write(root.path().join("helpcodes/helpcode.txt"), "甲=ab\n").unwrap();
+    std::fs::write(
+        root.path().join("helpcodes/xiaohe_helpcode.txt"),
+        "甲=xy\n乙=uv\n丙=rs\n",
+    )
+    .unwrap();
     Connection::open(root.path().join("xiaohe-yinxing.db"))
         .unwrap()
         .execute_batch(
@@ -76,6 +81,85 @@ fn session() -> (tempfile::TempDir, msime_engine::Session) {
     options.enabled_schemes = msime_engine::SchemeSet::of(&[options.scheme]);
     let session = msime_engine::Session::new(options).unwrap();
     (root, session)
+}
+
+#[test]
+fn xiaohe_candidates_show_xiaohe_shape_hints_without_changing_fixed_order() {
+    let (_root, mut session) = session();
+    session.character(b'a', false);
+    let first = session.snapshot();
+    assert_eq!(first.candidates[0].word, "甲");
+    assert_eq!(first.candidate_annotations[0], "(xY)");
+
+    session.character(b'b', false);
+    let second = session.snapshot();
+    assert_eq!(
+        second
+            .candidates
+            .iter()
+            .map(|candidate| candidate.word.as_str())
+            .collect::<Vec<_>>(),
+        ["乙", "丙"]
+    );
+    assert_eq!(second.candidate_annotations, ["(uV)", "(rS)"]);
+    assert_eq!(session.character(b';', false).commit.as_deref(), Some("丙"));
+}
+
+#[test]
+fn xiaohe_shape_hints_do_not_borrow_a_changed_pinyin_helpcode_table() {
+    let (_root, mut session) = session();
+    let changed =
+        msime_engine::host::HelpcodeKeymap::from_codes([("甲".to_owned(), "zz".to_owned())].into());
+    session.set_helpcode_table(std::sync::Arc::new(changed));
+    session.character(b'a', false);
+    assert_eq!(session.snapshot().candidate_annotations[0], "(xY)");
+}
+
+#[test]
+fn xiaohe_missing_shape_hint_resource_keeps_table_input_working() {
+    let (root, _old) = session();
+    std::fs::remove_file(root.path().join("helpcodes/xiaohe_helpcode.txt")).unwrap();
+    let paths = msime_engine::RuntimePaths {
+        resources: root.path().into(),
+        user_data: root.path().into(),
+        cache: root.path().into(),
+        dictionaries: root.path().into(),
+    };
+    let mut options = msime_engine::SessionOptions::new(paths);
+    options.scheme = msime_engine::SchemeType::XiaoheYinxing;
+    options.enabled_schemes = msime_engine::SchemeSet::of(&[options.scheme]);
+    let mut fresh = msime_engine::Session::new(options).unwrap();
+    fresh.character(b'a', false);
+    assert_eq!(fresh.snapshot().candidates[0].word, "甲");
+    assert_eq!(fresh.snapshot().candidate_annotations[0], "");
+}
+
+#[test]
+fn xiaohe_cloud_answer_appends_after_fixed_rows_and_rejects_old_input() {
+    let (_root, mut session) = session();
+    session.set_cloud_candidates_enabled(true);
+    session.character(b'a', false);
+    let query = session.online_query().expect("xiaohe query");
+    assert_eq!(query.query_text, "a");
+    assert!(query.pinyin_segments.is_empty());
+    assert!(query.cloud_eligible);
+    assert!(!query.ai_eligible);
+    assert!(session.apply_online_candidates(
+        &query,
+        &["云甲".into()],
+        msime_engine::CandidateSource::CloudSuggestion,
+    ));
+    let shown = session.snapshot();
+    assert_eq!(shown.candidates[0].word, "甲");
+    assert_eq!(shown.candidates[1].word, "云甲");
+    assert_eq!(shown.candidate_annotations[1], "");
+    session.character(b'b', false);
+    assert_eq!(session.snapshot().candidates[0].word, "乙");
+    assert!(!session.apply_online_candidates(
+        &query,
+        &["旧答案".into()],
+        msime_engine::CandidateSource::CloudSuggestion,
+    ));
 }
 
 #[test]

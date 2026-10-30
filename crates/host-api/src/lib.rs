@@ -637,6 +637,10 @@ impl HostSession {
             .as_ref()
             .map_or(&self.applied, |snapshot| &snapshot.preferences);
         self.english_query_allowed(query)
+            && (query.scheme != SchemeType::XiaoheYinxing as u8
+                || (preferences.xiaohe_cloud_candidates
+                    && preferences.cloud_candidate_provider.source
+                        == msime_client_core::cloud::candidates::CloudCandidateSource::Custom))
             && self.cloud_candidates_enabled()
             && query.cloud_request.as_ref().map_or_else(
                 || {
@@ -2027,6 +2031,13 @@ fn helpcode_for_scheme(
     preferences: &Preferences,
     scheme: InputScheme,
 ) -> msime_client_core::preferences::HelpcodePreferences {
+    if scheme == InputScheme::XiaoheYinxing {
+        return msime_client_core::preferences::HelpcodePreferences {
+            enabled: false,
+            show_in_candidate_window: preferences.xiaohe_shape_hints,
+            ..Default::default()
+        };
+    }
     if scheme == preferences.scheme {
         preferences.active_helpcode()
     } else {

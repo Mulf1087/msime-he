@@ -2563,6 +2563,13 @@ impl<E: InputEngine> Runtime<E> {
         {
             return false;
         }
+        // 小鹤音形的固定码表次序优先于通用云候选的第二席规则；它的云行已由 Engine 追加到本地表之后。
+        if scheme_type(snapshot.scheme) == Some(SchemeType::XiaoheYinxing)
+            && snapshot.local_mode == "none"
+            && !snapshot.dedicated_english
+        {
+            return false;
+        }
         let mut order_scratch = std::mem::take(&mut self.online_order_scratch);
         let mut fixed_english_scratch = std::mem::take(&mut self.online_fixed_english_scratch);
 

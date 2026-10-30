@@ -225,6 +225,24 @@ export function InputSettingsPage() {
           {host?.platform === "macos" && (
             <XiaoheTableSection dictionary={client.dictionary} onReady={setXiaoheReady} />
           )}
+          {macosPlatform && draft.scheme === "xiaohe_yinxing" && (
+            <GroupList title="小鹤音形提示">
+              <SwitchRow
+                title="显示小鹤形码"
+                description="在候选字词后显示形码；不改变输入编码、候选顺序或选词。"
+                checked={draft.xiaohe_shape_hints ?? true}
+                onChange={(xiaohe_shape_hints) => onPreferencesChange({ xiaohe_shape_hints })}
+              />
+              <SwitchRow
+                title="小鹤音形云候选"
+                description="开启云候选总开关并选择自定义服务后，才会发送音形编码；云候选排在本地候选之后。"
+                checked={draft.xiaohe_cloud_candidates ?? false}
+                onChange={(xiaohe_cloud_candidates) =>
+                  onPreferencesChange({ xiaohe_cloud_candidates })
+                }
+              />
+            </GroupList>
+          )}
           <InputSchemeSettingsContent
             preferences={draft}
             hasTouchKeyboardSchemes={Boolean(client.touchKeyboardSchemes)}

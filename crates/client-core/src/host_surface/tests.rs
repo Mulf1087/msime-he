@@ -541,7 +541,20 @@ fn every_host_offers_cantonese_zhuyin_vietnamese_tibetan_and_stroke() {
         HostPlatform::Harmony,
     ] {
         let schemes = HostCapabilities::for_platform(platform).input_schemes;
-        assert_eq!(schemes.len(), 10, "{platform:?}");
+        assert_eq!(
+            schemes.len(),
+            if platform == HostPlatform::Macos {
+                11
+            } else {
+                10
+            },
+            "{platform:?}"
+        );
+        assert_eq!(
+            schemes.contains(&InputScheme::XiaoheYinxing),
+            platform == HostPlatform::Macos,
+            "{platform:?}"
+        );
         for scheme in [
             InputScheme::Cantonese,
             InputScheme::Zhuyin,

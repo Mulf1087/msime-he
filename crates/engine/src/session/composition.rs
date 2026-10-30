@@ -762,9 +762,14 @@ impl InputSession {
                 .map(|item| crate::korean::hanja::gloss(syllable, &item.word).to_owned())
                 .collect();
         }
-        let enabled = self.helpcode_enabled();
+        let xiaohe = self.scheme() == SchemeType::XiaoheYinxing;
+        let enabled = self.helpcode_enabled() || xiaohe;
         let uppercase_all = self.scheme() == SchemeType::Quanpin;
-        let keymap = self.helpcode_keymap.as_deref();
+        let keymap = if xiaohe {
+            self.xiaohe_annotation_keymap.as_deref()
+        } else {
+            self.helpcode_keymap.as_deref()
+        };
         self.candidates()
             .iter()
             .map(|item| {
@@ -772,6 +777,7 @@ impl InputSession {
                     Some(keymap)
                         if enabled
                             && !hide_helpcode
+                            && (!xiaohe || item.source == CandidateSource::Database)
                             && !matches!(
                                 item.source,
                                 CandidateSource::EnglishDictionary

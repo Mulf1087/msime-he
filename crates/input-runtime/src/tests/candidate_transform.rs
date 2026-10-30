@@ -1052,6 +1052,23 @@ fn xiaohe_fixed_candidates_ignore_live_and_replayed_script_operations() {
 }
 
 #[test]
+fn xiaohe_candidates_request_glosses_without_changing_their_text_or_order() {
+    let mut engine = TransformEngine::new(&["甲", "乙"]);
+    engine.scheme = 10;
+    let mut harness = Harness::new(engine, vec![]);
+    harness.key(b'a');
+    assert!(harness.runtime.page_requests_translations());
+    let generation = harness.runtime.view().generation;
+    assert!(harness
+        .runtime
+        .apply_translations(generation, [("甲".into(), "first".into())]));
+    let view = harness.runtime.view();
+    assert_eq!(view.candidates[0].text, "甲");
+    assert_eq!(view.candidates[0].translation.as_deref(), Some("first"));
+    assert_eq!(view.candidates[1].text, "乙");
+}
+
+#[test]
 fn xiaohe_semicolon_selects_second_on_current_page() {
     let mut engine = TransformEngine::new(&["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛"]);
     engine.scheme = 10;

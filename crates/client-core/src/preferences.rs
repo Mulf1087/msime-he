@@ -1794,6 +1794,12 @@ pub struct Preferences {
     pub quanpin_helpcode: HelpcodePreferences,
     #[serde(default = "default_shuangpin_helpcode")]
     pub shuangpin_helpcode: HelpcodePreferences,
+    /// 小鹤音形候选的形码只作提示，不参与双拼辅助码筛选。
+    #[serde(default = "enabled_by_default", skip_serializing_if = "is_true")]
+    pub xiaohe_shape_hints: bool,
+    /// 音形编码发往自定义云候选服务的独立许可；仍要求云候选总开关开启。
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub xiaohe_cloud_candidates: bool,
     /// Render and commit Chinese Engine output in Traditional Chinese at the host boundary.
     #[serde(default)]
     pub traditional_chinese_output: bool,
@@ -3881,6 +3887,8 @@ impl Default for Preferences {
             fuzzy_pinyin: FuzzyPinyinPreferences::default(),
             quanpin_helpcode: default_quanpin_helpcode(),
             shuangpin_helpcode: default_shuangpin_helpcode(),
+            xiaohe_shape_hints: true,
+            xiaohe_cloud_candidates: false,
             traditional_chinese_output: false,
             traditional_chinese_variant: TraditionalVariant::default(),
             chinese_english_spacing: false,

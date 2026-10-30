@@ -288,7 +288,23 @@ pub fn build_request(
     query: &str,
     japanese: bool,
 ) -> Option<CloudHttpRequest> {
-    build_request_for_input(config, query, japanese, None)
+    build_request_for_input(config, query, japanese, None, false)
+}
+
+/// 音形原始编码只交给用户选择的自定义服务，固定带上方案标识。
+pub fn build_xiaohe_request(
+    config: &CloudCandidatePreferences,
+    code: &str,
+) -> Option<CloudHttpRequest> {
+    if config.source != CloudCandidateSource::Custom
+        || !(1..=4).contains(&code.len())
+        || !code
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte == b';')
+    {
+        return None;
+    }
+    build_request_for_input(config, code, false, None, true)
 }
 
 /// 英文仅发往用户配置的服务；请求显式携带模式和前文，不回退到拼音转换服务。
@@ -303,7 +319,7 @@ pub fn build_english_request(
     {
         return None;
     }
-    build_request_for_input(config, input, false, Some(context))
+    build_request_for_input(config, input, false, Some(context), false)
 }
 
 fn build_request_for_input(
@@ -311,6 +327,7 @@ fn build_request_for_input(
     query: &str,
     japanese: bool,
     english_context: Option<&str>,
+    xiaohe: bool,
 ) -> Option<CloudHttpRequest> {
     if !valid_cloud_input(query) || !config.validate() {
         return None;
@@ -333,26 +350,29 @@ fn build_request_for_input(
         if let Some(context) = english_context {
             body["mode"] = Value::String("english".into());
             body["context"] = Value::String(context.into());
+        } else if xiaohe {
+            body["mode"] = Value::String("xiaohe_yinxing".into());
         }
         body_utf8 = serde_json::to_string(&body).ok()?;
     }
-    if method == CloudHttpMethod::Get {
+    if method == CloudHttpMethod::Get && (english_context.is_some() || xiaohe) {
+        let mut parsed = url::Url::parse(&url).ok()?;
+        // 同名参数由本次英文请求决定，避免模板里的拼音模式覆盖它。
+        let pairs: Vec<_> = parsed
+            .query_pairs()
+            .filter(|(key, _)| key != "mode" && key != "context")
+            .map(|(key, value)| (key.into_owned(), value.into_owned()))
+            .collect();
+        parsed.set_query(None);
+        let mut query = parsed.query_pairs_mut();
+        query
+            .extend_pairs(pairs)
+            .append_pair("mode", if xiaohe { "xiaohe_yinxing" } else { "english" });
         if let Some(context) = english_context {
-            let mut parsed = url::Url::parse(&url).ok()?;
-            // 同名参数由本次英文请求决定，避免模板里的拼音模式覆盖它。
-            let pairs: Vec<_> = parsed
-                .query_pairs()
-                .filter(|(key, _)| key != "mode" && key != "context")
-                .map(|(key, value)| (key.into_owned(), value.into_owned()))
-                .collect();
-            parsed.set_query(None);
-            parsed
-                .query_pairs_mut()
-                .extend_pairs(pairs)
-                .append_pair("mode", "english")
-                .append_pair("context", context);
-            url = parsed.into();
+            query.append_pair("context", context);
         }
+        drop(query);
+        url = parsed.into();
     }
     let mut headers: BTreeMap<String, String> = if google {
         BTreeMap::new()
@@ -373,10 +393,14 @@ fn build_request_for_input(
         headers.insert("Content-Type".into(), "application/json".into());
     }
     let provider_id = config.identity();
-    let cache_input = english_context.map_or_else(
-        || format!("{provider_id}:{japanese}:{query}"),
-        |context| format!("{provider_id}:english:{query}:{context}"),
-    );
+    let cache_input = if xiaohe {
+        format!("{provider_id}:xiaohe_yinxing:{query}")
+    } else {
+        english_context.map_or_else(
+            || format!("{provider_id}:{japanese}:{query}"),
+            |context| format!("{provider_id}:english:{query}:{context}"),
+        )
+    };
     let cache_key = hex::encode(Sha256::digest(cache_input));
     let mut request = CloudHttpRequest {
         url,
@@ -518,6 +542,31 @@ mod tests {
             }
         }
         assert!(build_english_request(&custom("invalid"), "word1", "").is_none());
+    }
+
+    #[test]
+    fn xiaohe_requests_require_custom_service_and_carry_mode() {
+        assert!(build_xiaohe_request(&CloudCandidatePreferences::default(), "sm").is_none());
+        assert!(build_xiaohe_request(&custom("xiaohe"), "smx9").is_none());
+        for method in [CloudHttpMethod::Get, CloudHttpMethod::Post] {
+            let mut config = custom("xiaohe");
+            config.method = method;
+            let request = build_xiaohe_request(&config, "sm").unwrap();
+            assert_ne!(
+                request.cache_key,
+                build_request(&config, "sm", false).unwrap().cache_key
+            );
+            if method == CloudHttpMethod::Post {
+                let body: Value = serde_json::from_str(&request.body_utf8).unwrap();
+                assert_eq!(body["query"], "sm");
+                assert_eq!(body["mode"], "xiaohe_yinxing");
+            } else {
+                let url = url::Url::parse(&request.url).unwrap();
+                assert!(url
+                    .query_pairs()
+                    .any(|(key, value)| key == "mode" && value == "xiaohe_yinxing"));
+            }
+        }
     }
 
     #[test]

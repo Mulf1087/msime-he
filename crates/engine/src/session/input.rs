@@ -80,6 +80,8 @@ pub(super) struct InputSession {
     /// 前导键之后、辅助码之前的原文长度。
     pub helpcode_entry: Option<usize>,
     pub helpcode_keymap: Option<SharedKeymap>,
+    /// 小鹤音形只用这张独立表显示形码，不借用双拼的辅助码筛选表。
+    pub xiaohe_annotation_keymap: Option<SharedKeymap>,
     pub helpcode_fallback_resources: Option<PathBuf>,
     pub chinese_punctuation_enabled: bool,
     pub punctuation_lock: i32,
@@ -103,6 +105,8 @@ pub(super) struct InputSession {
     pub dedicated_english_candidates: Vec<WordItem>,
     pub english_online_candidates_enabled: bool,
     pub english_online_rows: Vec<WordItem>,
+    /// 小鹤云行是独立尾部覆盖层，不能进入按固定 rank 排序的码表。
+    pub xiaohe_online_rows: Vec<WordItem>,
     pub mixed_candidates: Vec<WordItem>,
     /// 候选混输总开关（`SessionOptions::mixed_candidates`）：关着时英文、emoji、颜文字、符号、日文混输行、行内日期时间和快捷短语都不混进普通候选，各分成员原值保留。
     pub mixed_candidates_enabled: bool,
@@ -153,6 +157,19 @@ impl InputSession {
             return Err(EngineError::invalid(diagnostics::INVALID_SESSION_OPTIONS));
         }
         let paths = options.paths.clone();
+        let xiaohe_annotation_keymap = options
+            .enabled_schemes
+            .contains(SchemeType::XiaoheYinxing)
+            .then(|| {
+                load_helpcode_keymap_with_fallback(
+                    &paths.resources,
+                    "xiaohe",
+                    options.helpcode_fallback_resources.as_deref(),
+                )
+                .ok()
+                .map(Arc::new)
+            })
+            .flatten();
         let journal = paths.user(assets::USER_JOURNAL);
         let profile = session_profile(
             options.shuangpin_profile,
@@ -197,6 +214,7 @@ impl InputSession {
             helpcode_trigger_key: options.helpcode_trigger_key,
             helpcode_entry: None,
             helpcode_keymap: None,
+            xiaohe_annotation_keymap,
             helpcode_fallback_resources: options.helpcode_fallback_resources.clone(),
             chinese_punctuation_enabled: true,
             punctuation_lock: 0,
@@ -227,6 +245,7 @@ impl InputSession {
             dedicated_english_candidates: Vec::new(),
             english_online_candidates_enabled: false,
             english_online_rows: Vec::new(),
+            xiaohe_online_rows: Vec::new(),
             mixed_candidates: Vec::new(),
             mixed_candidates_enabled: true,
             local_mode: LocalInputMode::None,
@@ -1650,6 +1669,9 @@ impl InputSession {
             return;
         }
         self.cloud_candidates_enabled = enabled;
+        if !enabled {
+            self.xiaohe_online_rows.clear();
+        }
         self.update_mixed_candidates();
     }
 
@@ -1665,6 +1687,7 @@ impl InputSession {
     pub(super) fn invalidate_online_requests(&mut self) {
         self.online_requests.invalidate();
         self.english_online_rows.clear();
+        self.xiaohe_online_rows.clear();
         self.dedicated_english_candidates
             .retain(|row| !row.source.is_online());
         self.local_candidates.retain(|row| !row.source.is_online());
@@ -1764,6 +1787,7 @@ impl InputSession {
         self.engine.clear_online_candidates(source);
         self.online_requests.invalidate();
         self.english_online_rows.retain(|row| row.source != source);
+        self.xiaohe_online_rows.retain(|row| row.source != source);
         self.dedicated_english_candidates
             .retain(|row| row.source != source);
         self.local_candidates.retain(|row| row.source != source);

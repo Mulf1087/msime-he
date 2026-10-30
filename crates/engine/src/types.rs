@@ -361,8 +361,7 @@ impl SchemeType {
     /// The engine raises cloud queries for the composition.
     pub const fn cloud_eligible(self) -> bool {
         match self {
-            Self::XiaoheYinxing => false,
-            Self::Quanpin | Self::Shuangpin | Self::JapaneseRomaji => true,
+            Self::XiaoheYinxing | Self::Quanpin | Self::Shuangpin | Self::JapaneseRomaji => true,
             Self::Wubi
             | Self::Korean
             | Self::Vietnamese
@@ -376,8 +375,9 @@ impl SchemeType {
     /// Candidates may carry translation glosses. Korean's are the Hanja rows, glossed and translated like Chinese ones under their 훈음.
     pub const fn shows_glosses(self) -> bool {
         match self {
-            Self::XiaoheYinxing => false,
-            Self::Quanpin | Self::Shuangpin | Self::Wubi | Self::Korean => true,
+            Self::XiaoheYinxing | Self::Quanpin | Self::Shuangpin | Self::Wubi | Self::Korean => {
+                true
+            }
             Self::JapaneseRomaji
             | Self::Vietnamese
             | Self::Tibetan

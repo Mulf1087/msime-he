@@ -103,6 +103,17 @@ impl InputSession {
             self.ranking_candidates = None;
             self.prefix_active = false;
             clone_candidate_rows(self.engine.candidates(), &mut self.mixed_candidates);
+            if self.cloud_candidates_enabled {
+                for row in &self.xiaohe_online_rows {
+                    if !self
+                        .mixed_candidates
+                        .iter()
+                        .any(|local| local.word == row.word)
+                    {
+                        self.mixed_candidates.push(row.clone());
+                    }
+                }
+            }
             return;
         }
 

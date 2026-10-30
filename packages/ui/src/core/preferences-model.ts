@@ -236,6 +236,10 @@ export type Preferences = PunctuationPreferences &
     };
     quanpin_helpcode?: HelpcodePreferences;
     shuangpin_helpcode?: HelpcodePreferences;
+    /** 仅显示小鹤音形候选的形码，不影响查表和候选顺序。 */
+    xiaohe_shape_hints?: boolean;
+    /** 允许将小鹤音形编码发送到已配置的自定义云候选服务。 */
+    xiaohe_cloud_candidates?: boolean;
     traditional_chinese_output?: boolean;
     /** 繁体输出用的 OpenCC 配置：标准繁体、台湾正体、台湾正体加惯用词。缺省为 `s2t`，等于缺省时文档里没有这个键。 */
     traditional_chinese_variant?: TraditionalChineseVariant;

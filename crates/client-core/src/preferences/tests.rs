@@ -5,6 +5,21 @@
 use super::*;
 
 #[test]
+fn xiaohe_shape_hints_default_on_and_stay_independent_of_pinyin_helpcode() {
+    let mut document = serde_json::to_value(Preferences::default()).unwrap();
+    assert!(document.get("xiaohe_shape_hints").is_none());
+    document["scheme"] = serde_json::json!("xiaohe_yinxing");
+    let mut preferences: Preferences = serde_json::from_value(document).unwrap();
+    assert!(preferences.xiaohe_shape_hints);
+    assert!(!preferences.active_helpcode().enabled);
+    preferences.xiaohe_shape_hints = false;
+    let restored: Preferences =
+        serde_json::from_value(serde_json::to_value(&preferences).unwrap()).unwrap();
+    assert!(!restored.xiaohe_shape_hints);
+    assert_eq!(restored.shuangpin_helpcode, preferences.shuangpin_helpcode);
+}
+
+#[test]
 fn adaptive_candidate_settings_defaults_round_trip_and_validate() {
     let mut value = serde_json::to_value(Preferences::default()).unwrap();
     for key in [

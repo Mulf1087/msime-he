@@ -220,6 +220,10 @@ impl InputSession {
             query.cloud_eligible = true;
             return Some(query);
         }
+        if request.scheme == SchemeType::XiaoheYinxing {
+            query.cloud_eligible = true;
+            return Some(query);
+        }
         if query.query_text.is_empty() {
             return None;
         }
@@ -306,6 +310,9 @@ impl InputSession {
         if query.mode == OnlineInputMode::English {
             return self.apply_english_online_rows(query, &[word.to_owned()], source);
         }
+        if self.scheme() == SchemeType::XiaoheYinxing {
+            return self.apply_online_candidates(query, &[word.to_owned()], source);
+        }
         if !self
             .engine
             .apply_dynamic_candidates(&[word.to_owned()], source)
@@ -333,6 +340,28 @@ impl InputSession {
         }
         if query.mode == OnlineInputMode::English {
             return self.apply_english_online_rows(query, words, source);
+        }
+        if self.scheme() == SchemeType::XiaoheYinxing {
+            if !self.cloud_candidates_enabled || source != CandidateSource::CloudSuggestion {
+                return false;
+            }
+            let mut rows = Vec::with_capacity(words.len());
+            for word in words {
+                if self
+                    .engine
+                    .candidates()
+                    .iter()
+                    .any(|item| item.word == *word)
+                {
+                    continue;
+                }
+                let mut row = WordItem::new(&query.query_text, word, 0, source, "");
+                row.scheme = SchemeType::XiaoheYinxing;
+                rows.push(row);
+            }
+            self.xiaohe_online_rows = rows;
+            self.update_mixed_candidates();
+            return true;
         }
         if !self.engine.apply_dynamic_candidates(words, source) {
             return false;
@@ -415,6 +444,15 @@ impl InputSession {
                 ai_eligible: false,
             });
         }
+        if request.scheme == SchemeType::XiaoheYinxing {
+            return (query.cloud_eligible
+                && !query.ai_eligible
+                && query.pinyin_segments.is_empty())
+            .then_some(OnlineAnswerState {
+                cloud_eligible: true,
+                ai_eligible: false,
+            });
+        }
         let segmentation = if request.normalized_segmentation.is_empty() {
             state.query_text.as_ref()
         } else {
@@ -448,8 +486,19 @@ impl InputSession {
             | SchemeType::Zhuyin
             | SchemeType::Vietnamese
             | SchemeType::Tibetan
-            | SchemeType::Stroke
-            | SchemeType::XiaoheYinxing => {}
+            | SchemeType::Stroke => {}
+            SchemeType::XiaoheYinxing => {
+                let code = request.raw_input.as_str();
+                if (1..=4).contains(&code.len())
+                    && code
+                        .bytes()
+                        .all(|byte| byte.is_ascii_lowercase() || byte == b';')
+                {
+                    state.should_query = true;
+                    state.query_text = Cow::Borrowed(code);
+                    state.cache_key = Cow::Borrowed(code);
+                }
+            }
             // Wubi codes are not spellings a cloud provider understands, and wubi providers cannot take dynamic rows.
             SchemeType::Wubi => state.cache_key = Cow::Borrowed(&request.normalized_input),
             SchemeType::Shuangpin => {

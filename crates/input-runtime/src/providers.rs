@@ -31,7 +31,14 @@ fn cloud_query_allowed(query: &OnlineQuery) -> bool {
                 .as_ref()
                 .is_some_and(|request| request.validate())
         } else {
-            SchemeType::from_u8(query.scheme).is_some_and(SchemeType::cloud_eligible)
+            SchemeType::from_u8(query.scheme).is_some_and(|scheme| {
+                scheme.cloud_eligible()
+                    && (scheme != SchemeType::XiaoheYinxing
+                        || query
+                            .cloud_request
+                            .as_ref()
+                            .is_some_and(|request| request.validate()))
+            })
         }
 }
 

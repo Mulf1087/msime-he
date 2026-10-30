@@ -688,7 +688,7 @@ impl Session {
             return self.nine_key.snapshot();
         }
         let hide_helpcode = !show_helpcode
-            && self.input.helpcode_enabled()
+            && (self.input.helpcode_enabled() || self.input.scheme() == SchemeType::XiaoheYinxing)
             && !self.input.local_mode.annotates_rows();
         let input = &self.input;
         let mut candidates = input.candidates().to_vec();

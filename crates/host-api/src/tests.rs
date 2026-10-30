@@ -4756,6 +4756,119 @@ fn japanese_candidates_ask_for_no_translation() {
     }
 }
 
+#[test]
+fn xiaohe_candidates_use_existing_translation_preferences() {
+    let dir = tempfile::tempdir().unwrap();
+    let user = dir.path().join("user");
+    std::fs::create_dir_all(&user).unwrap();
+    msime_engine::xiaohe::import_tsv(&user, "# msime-xiaohe-yinxing-v1\na\t1\t甲\n").unwrap();
+    let mut preferences = Preferences {
+        scheme: InputScheme::XiaoheYinxing,
+        candidate_translations: true,
+        ..chinese_preferences()
+    };
+    let handle = test_host_preferences(dir.path(), preferences.clone());
+    read(msime_client_focus(handle, true));
+    let view = read(msime_client_character(handle, b'a', false));
+    assert_eq!(view["value"]["view"]["candidates"][0]["text"], "甲");
+    assert!(!read(msime_client_translation_query(handle))["value"].is_null());
+    preferences.candidate_translations = false;
+    assert_eq!(update(handle, 1, &preferences)["ok"], true);
+    assert!(read(msime_client_translation_query(handle))["value"].is_null());
+    read(msime_client_destroy(handle));
+}
+
+#[test]
+fn xiaohe_shape_hint_switch_changes_only_the_candidate_annotation() {
+    for show in [true, false] {
+        let dir = tempfile::tempdir().unwrap();
+        let user = dir.path().join("user");
+        std::fs::create_dir_all(&user).unwrap();
+        msime_engine::xiaohe::import_tsv(&user, "# msime-xiaohe-yinxing-v1\na\t1\t甲\na\t2\t乙\n")
+            .unwrap();
+        let helpcodes = dir.path().join("resources/helpcodes");
+        std::fs::create_dir_all(&helpcodes).unwrap();
+        std::fs::write(helpcodes.join("xiaohe_helpcode.txt"), "甲=xy\n").unwrap();
+        let handle = test_host_preferences(
+            dir.path(),
+            Preferences {
+                scheme: InputScheme::XiaoheYinxing,
+                xiaohe_shape_hints: show,
+                ..chinese_preferences()
+            },
+        );
+        read(msime_client_focus(handle, true));
+        let view = read(msime_client_character(handle, b'a', false))["value"]["view"].clone();
+        assert_eq!(view["candidates"][0]["text"], "甲");
+        assert_eq!(
+            view["candidates"][0]["annotation"],
+            if show { "(xY)" } else { "" }
+        );
+        read(msime_client_destroy(handle));
+    }
+}
+
+#[test]
+fn xiaohe_cloud_candidates_require_both_opt_in_and_custom_service() {
+    use msime_client_core::cloud::candidates::{CloudCandidatePreferences, CloudCandidateSource};
+    for (opt_in, custom, expected) in [
+        (false, true, false),
+        (true, false, false),
+        (true, true, true),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let user = dir.path().join("user");
+        std::fs::create_dir_all(&user).unwrap();
+        msime_engine::xiaohe::import_tsv(&user, "# msime-xiaohe-yinxing-v1\na\t1\t甲\na\t2\t乙\n")
+            .unwrap();
+        let mut provider = CloudCandidatePreferences::default();
+        if custom {
+            provider.source = CloudCandidateSource::Custom;
+            provider.endpoint = "https://cloud.example.invalid/api?q={query}".into();
+        }
+        let handle = test_host_preferences(
+            dir.path(),
+            Preferences {
+                scheme: InputScheme::XiaoheYinxing,
+                cloud_candidates: true,
+                xiaohe_cloud_candidates: opt_in,
+                cloud_candidate_provider: provider,
+                ..chinese_preferences()
+            },
+        );
+        read(msime_client_focus(handle, true));
+        read(msime_client_character(handle, b'a', false));
+        let query = read(msime_client_online_query(handle))["value"].clone();
+        assert_eq!(query["cloud_candidates"], expected);
+        if expected {
+            assert_eq!(query["query_text"], "a");
+            assert!(query["cloud_request"]["url"]
+                .as_str()
+                .unwrap()
+                .contains("mode=xiaohe_yinxing"));
+            let raw = query.to_string();
+            let body = br#"{"candidates":[{"text":"\u4e91\u7532"}]}"#;
+            let result = read(unsafe {
+                msime_client_apply_cloud_response(
+                    handle,
+                    raw.as_ptr(),
+                    raw.len(),
+                    body.as_ptr(),
+                    body.len(),
+                )
+            });
+            assert_eq!(result["value"]["applied"], true, "{result}");
+            let candidates = &result["value"]["view"]["candidates"];
+            assert_eq!(candidates[0]["text"], "甲");
+            assert_eq!(candidates[1]["text"], "乙", "{result}");
+            assert_eq!(candidates[2]["text"], "云甲");
+        } else {
+            assert!(query["cloud_request"].is_null());
+        }
+        read(msime_client_destroy(handle));
+    }
+}
+
 // 网址可能带着私密路径和参数，网址模式不向翻译服务要候选翻译。对照组是同一偏好下的 Unicode 候选，确认拦下它的是网址模式本身。
 #[test]
 fn url_candidates_ask_for_no_translation() {
@@ -5118,6 +5231,20 @@ fn helpcode_defaults_follow_preferences_for_each_pinyin_scheme() {
         assert!(session.options.show_helpcode);
     });
     read(msime_client_destroy(handle));
+}
+
+#[test]
+fn xiaohe_shape_hint_visibility_uses_its_own_preference() {
+    let mut preferences = Preferences {
+        scheme: InputScheme::XiaoheYinxing,
+        ..Preferences::default()
+    };
+    assert!(helpcode_for_scheme(&preferences, InputScheme::XiaoheYinxing).show_in_candidate_window);
+    preferences.xiaohe_shape_hints = false;
+    assert!(
+        !helpcode_for_scheme(&preferences, InputScheme::XiaoheYinxing).show_in_candidate_window
+    );
+    assert!(helpcode_for_scheme(&preferences, InputScheme::Shuangpin).show_in_candidate_window);
 }
 
 #[test]
