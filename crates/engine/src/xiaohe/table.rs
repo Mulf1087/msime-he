@@ -101,7 +101,32 @@ impl XiaoheTable {
                 })
             })
             .map_err(|_| fail())?;
-        rows.collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(|_| fail())
+        let mut entries = rows
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| fail())?;
+        // Older imported databases have no personal table. A newly created table becomes visible
+        // to an already open read-only connection on its next query.
+        if let Ok(mut users) = self
+            .connection
+            .prepare_cached("SELECT text FROM user_entries WHERE code=?1 ORDER BY text")
+        {
+            if let Ok(rows) = users.query_map([code], |row| row.get::<_, String>(0)) {
+                let mut rank = entries.iter().map(|entry| entry.rank).max().unwrap_or(0);
+                for word in rows.flatten() {
+                    if !super::valid_user_entry(code, &word)
+                        || entries.iter().any(|entry| entry.word == word)
+                    {
+                        continue;
+                    }
+                    rank += 1;
+                    entries.push(XiaoheEntry {
+                        code: code.to_owned(),
+                        rank,
+                        word,
+                    });
+                }
+            }
+        }
+        Ok(entries)
     }
 }

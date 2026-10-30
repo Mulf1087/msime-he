@@ -7,6 +7,8 @@ use std::fmt;
 pub const MAX_CODE_BYTES: usize = 512;
 /// 词的字节上限，与 Engine 个人词库的 `MAX_VALUE_BYTES` 相同。
 pub const MAX_WORD_BYTES: usize = 4096;
+// Candidate text occupies a fixed 200-unit field, including its terminator.
+const XIAOHE_CANDIDATE_TEXT_CAPACITY: usize = 200;
 
 /// 词库类别，名字与 Engine 日志里的 `dictionary` 列相同。按名字的字母顺序排列，词条因此有确定的顺序。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -17,6 +19,7 @@ pub enum WordKind {
     Quick,
     Wubi,
     Wubi98,
+    Xiaohe,
 }
 
 impl WordKind {
@@ -27,6 +30,7 @@ impl WordKind {
             Self::Quick => "quick",
             Self::Wubi => "wubi",
             Self::Wubi98 => "wubi98",
+            Self::Xiaohe => "xiaohe",
         }
     }
 
@@ -37,6 +41,7 @@ impl WordKind {
             "quick" => Self::Quick,
             "wubi" => Self::Wubi,
             "wubi98" => Self::Wubi98,
+            "xiaohe" => Self::Xiaohe,
             _ => return None,
         })
     }
@@ -63,7 +68,7 @@ impl fmt::Debug for WordKey {
 }
 
 impl WordKey {
-    /// 规范化并校验：编码转成小写 ASCII，拼音的空格换成音节分隔符 `'`。规则按类别与 Engine 相同：拼音是用 `'` 隔开的小写字母音节；五笔 1 到 4 个字母；快捷短语 1 到 32 个字母或数字；英文最多 64 个字母、`-` 或 `'`。词不能为空、不超过 [`MAX_WORD_BYTES`]，不含控制字符（快捷短语可以有换行和制表符）。拼音音节是否真的存在、个数是否与字数相同由 Engine 在写入时判断。
+    /// 规范化并校验：编码转成小写 ASCII，拼音的空格换成音节分隔符 `'`。音形使用一至四字母或分号快符编码。词不能为空、不超过 [`MAX_WORD_BYTES`]，不含控制字符（快捷短语可以有换行和制表符）。
     pub fn new(kind: WordKind, code: &str, word: &str) -> Option<Self> {
         let mut code = code.to_ascii_lowercase();
         if kind == WordKind::Pinyin {
@@ -77,6 +82,13 @@ impl WordKey {
                     .split('\'')
                     .all(|syllable| !syllable.is_empty() && syllable.bytes().all(letter)),
                 WordKind::Wubi | WordKind::Wubi98 => code.len() <= 4 && code.bytes().all(letter),
+                WordKind::Xiaohe => {
+                    (code.len() <= 4 && code.bytes().all(letter))
+                        || code == ";"
+                        || (code.len() == 2
+                            && code.starts_with(';')
+                            && code.as_bytes()[1].is_ascii_lowercase())
+                }
                 WordKind::Quick => {
                     code.len() <= 32
                         && code
@@ -93,6 +105,8 @@ impl WordKey {
         let multiline = kind == WordKind::Quick;
         let word_ok = !word.is_empty()
             && word.len() <= MAX_WORD_BYTES
+            && (kind != WordKind::Xiaohe
+                || word.encode_utf16().count() < XIAOHE_CANDIDATE_TEXT_CAPACITY)
             && !word.bytes().any(|byte| {
                 (byte < 0x20 && !(multiline && (byte == b'\n' || byte == b'\t'))) || byte == 0x7f
             });
@@ -209,6 +223,7 @@ mod tests {
             WordKind::English,
             WordKind::Wubi,
             WordKind::Quick,
+            WordKind::Xiaohe,
         ];
         kinds.sort();
         let names: Vec<&str> = kinds.iter().map(|kind| kind.name()).collect();
@@ -219,5 +234,13 @@ mod tests {
             assert_eq!(WordKind::from_name(kind.name()), Some(kind));
         }
         assert_eq!(WordKind::from_name("bundled"), None);
+    }
+
+    #[test]
+    fn xiaohe_sync_identity_accepts_only_table_codes_and_bounded_words() {
+        assert!(WordKey::canonical(WordKind::Xiaohe, "sm", "什么").is_some());
+        assert!(WordKey::canonical(WordKind::Xiaohe, ";q", "！").is_some());
+        assert!(WordKey::canonical(WordKind::Xiaohe, "smx9", "什么").is_none());
+        assert!(WordKey::canonical(WordKind::Xiaohe, "sm", &"字".repeat(200)).is_none());
     }
 }

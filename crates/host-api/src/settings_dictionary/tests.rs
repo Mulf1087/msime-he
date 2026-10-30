@@ -723,3 +723,29 @@ fn xiaohe_settings_import_and_status_preserve_previous_table_on_error() {
     .unwrap();
     assert_eq!(status["count"], 1);
 }
+
+#[test]
+fn xiaohe_settings_personal_words_are_listed_and_editable() {
+    let root = tempfile::tempdir().unwrap();
+    let options = serde_json::json!({"user_data":root.path()});
+    super::request(&options, &serde_json::json!({"operation":"xiaohe_import","text":"# msime-xiaohe-yinxing-v1\nsm\t1\t什么\n"}), || {}).unwrap();
+    let add = serde_json::json!({"operation":"xiaohe_user_add","code":"sm","word":"神马"});
+    assert_eq!(super::request(&options, &add, || {}).unwrap()["ok"], true);
+    let list = serde_json::json!({"operation":"xiaohe_user_list","offset":0,"limit":100});
+    let result = super::request(&options, &list, || {}).unwrap();
+    assert_eq!(result["total"], 1);
+    assert_eq!(result["entries"][0]["word"], "神马");
+    assert_eq!(
+        msime_engine::xiaohe::XiaoheTable::open(&root.path().join("xiaohe-yinxing.db"))
+            .unwrap()
+            .query("sm")
+            .unwrap()
+            .iter()
+            .map(|row| row.word.as_str())
+            .collect::<Vec<_>>(),
+        ["什么", "神马"]
+    );
+    let delete = serde_json::json!({"operation":"xiaohe_user_delete","code":"sm","word":"神马"});
+    super::request(&options, &delete, || {}).unwrap();
+    assert_eq!(super::request(&options, &list, || {}).unwrap()["total"], 0);
+}

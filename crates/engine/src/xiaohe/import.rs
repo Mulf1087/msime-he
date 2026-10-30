@@ -16,6 +16,11 @@ pub fn import_tsv(user_root: &Path, text: &str) -> Result<usize> {
         return Err(fail());
     }
     let destination = user_root.join("xiaohe-yinxing.db");
+    let personal = if super::XiaoheTable::open(&destination).is_ok() {
+        super::list_user_entries(user_root)?
+    } else {
+        Vec::new()
+    };
     if let Ok(metadata) = std::fs::symlink_metadata(&destination) {
         if !metadata.is_file() {
             return Err(fail());
@@ -50,6 +55,7 @@ pub fn import_tsv(user_root: &Path, text: &str) -> Result<usize> {
         }
     }
     transaction.commit().map_err(|_| fail())?;
+    super::user::write_users(&connection, &personal)?;
     drop(connection);
     let checked = super::XiaoheTable::open(temporary.path())?;
     let count = checked.count();

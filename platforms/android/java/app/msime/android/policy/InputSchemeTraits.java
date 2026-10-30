@@ -45,7 +45,7 @@ public final class InputSchemeTraits {
     public static boolean opensLocalModes(int scheme) { return scheme == QUANPIN || scheme == SHUANGPIN; }
 
     // `shows_glosses`: candidates may carry translation glosses.
-    public static boolean showsGlosses(int scheme) { return scheme == QUANPIN || scheme == SHUANGPIN || scheme == WUBI || scheme == KOREAN; }
+    public static boolean showsGlosses(int scheme) { return scheme == QUANPIN || scheme == SHUANGPIN || scheme == WUBI || scheme == KOREAN || scheme == XIAOHE_YINXING; }
 
     // `commits_on_blur`: leaving the composition (focus loss, a caret jump, a scheme or mode switch) writes it out instead of discarding it.
     public static boolean commitsOnBlur(int scheme) { return scheme == KOREAN || scheme == ZHUYIN || scheme == VIETNAMESE || scheme == TIBETAN || scheme == XIAOHE_YINXING; }

@@ -112,6 +112,10 @@ const dictionary: DictionaryClient = {
     invoke("dictionary_request", {
       action: { operation: text === undefined ? "xiaohe_status" : "xiaohe_import", text },
     }),
+  xiaoheUser: (operation, code, word, offset) =>
+    invoke("dictionary_request", {
+      action: { operation: `xiaohe_user_${operation}`, code, word, offset, limit: 100 },
+    }),
   browse: (offset, limit, kind, query) =>
     invoke("dictionary_request", {
       action: { operation: "browse", offset, limit, kind, query },

@@ -65,7 +65,7 @@ constexpr bool WidensFullWidth(int scheme)
 }
 
 // `shows_glosses`: candidates may carry translation glosses.
-constexpr bool ShowsGlosses(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Korean; }
+constexpr bool ShowsGlosses(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Korean || scheme == XiaoheYinxing; }
 // 音形固定五项分页，避免显示页与固定码表选择发生分歧。
 constexpr unsigned CandidatePageSize(int scheme, unsigned preferred) { return scheme == XiaoheYinxing ? 5 : preferred; }
 constexpr bool AllowsAdaptiveCandidates(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Japanese || scheme == Korean || scheme == Cantonese || scheme == Zhuyin || scheme == Vietnamese || scheme == Tibetan || scheme == Stroke; }

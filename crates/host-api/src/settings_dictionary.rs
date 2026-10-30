@@ -397,7 +397,13 @@ pub fn request(
 ) -> Result<Value, &'static str> {
     if matches!(
         action["operation"].as_str(),
-        Some("xiaohe_status" | "xiaohe_import")
+        Some(
+            "xiaohe_status"
+                | "xiaohe_import"
+                | "xiaohe_user_list"
+                | "xiaohe_user_add"
+                | "xiaohe_user_delete"
+        )
     ) {
         let root = options["user_data"]
             .as_str()
@@ -411,6 +417,45 @@ pub fn request(
             let table = msime_engine::xiaohe::XiaoheTable::open(&path)
                 .map_err(|_| "dictionary_unavailable")?;
             return Ok(json!({"installed":true,"count":table.count()}));
+        }
+        if action["operation"] == "xiaohe_user_list" {
+            let offset = action["offset"].as_u64().unwrap_or(0) as usize;
+            let limit = action["limit"].as_u64().unwrap_or(100) as usize;
+            if offset > 20_000 || !(1..=100).contains(&limit) {
+                return Err("invalid dictionary page");
+            }
+            let all = msime_engine::xiaohe::list_user_entries(root)
+                .map_err(|_| "dictionary_unavailable")?;
+            let total = all.len();
+            let entries: Vec<_> = all
+                .into_iter()
+                .skip(offset)
+                .take(limit)
+                .map(|(code, word)| json!({"code":code,"word":word}))
+                .collect();
+            return Ok(json!({"entries":entries,"total":total}));
+        }
+        if matches!(
+            action["operation"].as_str(),
+            Some("xiaohe_user_add" | "xiaohe_user_delete")
+        ) {
+            let code = action["code"].as_str().ok_or("dictionary_edit_rejected")?;
+            let word = action["word"].as_str().ok_or("dictionary_edit_rejected")?;
+            if !msime_engine::xiaohe::valid_user_entry(code, word) {
+                return Err("dictionary_edit_rejected");
+            }
+            let add = action["operation"] == "xiaohe_user_add";
+            let mut hosts = msime_client_services::dictionary::quiesce::QuiescedHosts::new(
+                Some(root.to_str().ok_or("dictionary_unavailable")?),
+                announce,
+            );
+            return hosts
+                .run(|| {
+                    msime_engine::xiaohe::edit_user_entry(root, code, word, add)
+                        .map(|()| json!({"ok":true}))
+                        .map_err(|_| "dictionary_edit_rejected".to_owned())
+                })
+                .map_err(|_| "dictionary_edit_rejected");
         }
         let text = action["text"]
             .as_str()

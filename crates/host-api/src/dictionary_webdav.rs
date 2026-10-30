@@ -47,15 +47,16 @@ fn word_kind(kind: msime_engine::host::DictionaryKind) -> Option<WordKind> {
     })
 }
 
-fn engine_kind(kind: WordKind) -> msime_engine::host::DictionaryKind {
+fn engine_kind(kind: WordKind) -> Option<msime_engine::host::DictionaryKind> {
     use msime_engine::host::DictionaryKind;
-    match kind {
+    Some(match kind {
         WordKind::Pinyin => DictionaryKind::Pinyin,
         WordKind::Wubi => DictionaryKind::Wubi,
         WordKind::Wubi98 => DictionaryKind::Wubi98,
         WordKind::Quick => DictionaryKind::QuickPhrase,
         WordKind::English => DictionaryKind::English,
-    }
+        WordKind::Xiaohe => return None,
+    })
 }
 
 /// Engine 的个人词库，接成协议核心的本机词库。
@@ -118,6 +119,16 @@ impl<'a> EngineDictionary<'a> {
             true
         })
         .map_err(|_| LocalError::Unavailable)?;
+        let xiaohe = std::path::Path::new(&self.options.user_data);
+        if xiaohe.join("xiaohe-yinxing.db").exists() {
+            for (code, word) in msime_engine::xiaohe::list_user_entries(xiaohe)
+                .map_err(|_| LocalError::Unavailable)?
+            {
+                let key = WordKey::canonical(WordKind::Xiaohe, &code, &word)
+                    .ok_or(LocalError::Unavailable)?;
+                words.insert(key);
+            }
+        }
         self.weights = weights;
         Ok(words)
     }
@@ -154,13 +165,13 @@ impl<'a> EngineDictionary<'a> {
         attempt().map_err(busy)
     }
 
-    fn entry(&self, key: &WordKey, weight: i64) -> msime_engine::host::DictionaryEntry {
-        msime_engine::host::DictionaryEntry {
-            kind: engine_kind(key.kind()),
+    fn entry(&self, key: &WordKey, weight: i64) -> Option<msime_engine::host::DictionaryEntry> {
+        Some(msime_engine::host::DictionaryEntry {
+            kind: engine_kind(key.kind())?,
             key: key.code().to_owned(),
             value: key.word().to_owned(),
             weight,
-        }
+        })
     }
 
     /// 一批写进 Engine，结果与 `changes` 一一对应；`None` 是这一项写不进去。
@@ -174,13 +185,16 @@ impl<'a> EngineDictionary<'a> {
                 if change.add {
                     (
                         None,
-                        Some(self.entry(
+                        self.entry(
                             &change.key,
                             msime_engine::host::DictionaryEntry::DEFAULT_WEIGHT,
-                        )),
+                        ),
                     )
                 } else {
-                    (weight.map(|weight| self.entry(&change.key, weight)), None)
+                    (
+                        weight.and_then(|weight| self.entry(&change.key, weight)),
+                        None,
+                    )
                 }
             })
             .collect();
@@ -231,8 +245,27 @@ impl LocalDictionary for EngineDictionary<'_> {
         let _access = self.maintenance()?;
         // 要删的词不在本机的「我的词条」里就是已经删好了，不用写。
         let mut outcomes = vec![LocalOutcome::Applied; changes.len()];
+        for (index, change) in changes.iter().enumerate() {
+            if change.key.kind() != WordKind::Xiaohe {
+                continue;
+            }
+            let root = std::path::Path::new(&self.options.user_data);
+            if msime_engine::xiaohe::edit_user_entry(
+                root,
+                change.key.code(),
+                change.key.word(),
+                change.add,
+            )
+            .is_err()
+            {
+                outcomes[index] = LocalOutcome::Rejected;
+            }
+        }
         let mut pending: Vec<usize> = (0..changes.len())
-            .filter(|index| changes[*index].add || self.weights.contains_key(&changes[*index].key))
+            .filter(|index| {
+                changes[*index].key.kind() != WordKind::Xiaohe
+                    && (changes[*index].add || self.weights.contains_key(&changes[*index].key))
+            })
             .collect();
         // 删除带的权重可能刚被打字学习改过：失败的删除重读一次权重再试。
         for round in 0..2 {
@@ -568,7 +601,13 @@ impl SchedulerHost for ImeHost {
         let journal = Path::new(&engine.user_data).join(msime_engine::assets::USER_JOURNAL);
         let mut hasher = DefaultHasher::new();
         // 日志库开着 WAL：提交先写进 `-wal`，检查点才回到主文件，两个都看。文件还不存在也是一种状态，出现时戳就变了。
-        for path in [journal.clone(), journal.with_extension("db-wal")] {
+        let xiaohe = Path::new(&engine.user_data).join("xiaohe-yinxing.db");
+        for path in [
+            journal.clone(),
+            journal.with_extension("db-wal"),
+            xiaohe.clone(),
+            xiaohe.with_extension("db-wal"),
+        ] {
             match std::fs::metadata(&path) {
                 Ok(metadata) => {
                     metadata.len().hash(&mut hasher);

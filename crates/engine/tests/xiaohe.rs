@@ -40,6 +40,44 @@ fn fixed_codes_keep_reference_order_and_require_complete_code() {
 }
 
 #[test]
+fn personal_xiaohe_words_follow_the_base_table_and_survive_reimport() {
+    let root = tempfile::tempdir().unwrap();
+    msime_engine::xiaohe::import_tsv(root.path(), "# msime-xiaohe-yinxing-v1\na\t1\t甲\n").unwrap();
+    let table = XiaoheTable::open(&root.path().join("xiaohe-yinxing.db")).unwrap();
+    msime_engine::xiaohe::edit_user_entry(root.path(), "a", "乙", true).unwrap();
+    assert_eq!(
+        table
+            .query("a")
+            .unwrap()
+            .iter()
+            .map(|row| row.word.as_str())
+            .collect::<Vec<_>>(),
+        ["甲", "乙"]
+    );
+    drop(table);
+    assert_eq!(
+        msime_engine::xiaohe::list_user_entries(root.path()).unwrap(),
+        [("a".into(), "乙".into())]
+    );
+    msime_engine::xiaohe::import_tsv(root.path(), "# msime-xiaohe-yinxing-v1\na\t1\t丙\n").unwrap();
+    let table = XiaoheTable::open(&root.path().join("xiaohe-yinxing.db")).unwrap();
+    assert_eq!(
+        table
+            .query("a")
+            .unwrap()
+            .iter()
+            .map(|row| row.word.as_str())
+            .collect::<Vec<_>>(),
+        ["丙", "乙"]
+    );
+    drop(table);
+    msime_engine::xiaohe::edit_user_entry(root.path(), "a", "乙", false).unwrap();
+    assert!(msime_engine::xiaohe::list_user_entries(root.path())
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
 fn missing_and_unknown_version_tables_are_rejected() {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("table.db");

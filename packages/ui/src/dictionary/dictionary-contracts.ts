@@ -57,6 +57,12 @@ export interface DictionaryUpdateStatus {
 export interface DictionaryClient {
   /** 独立小鹤音形码表；不混入拼音或快捷短语。 */
   xiaohe?(text?: string): Promise<{ installed: boolean; count: number }>;
+  xiaoheUser?(
+    operation: "list" | "add" | "delete",
+    code?: string,
+    word?: string,
+    offset?: number,
+  ): Promise<{ ok?: boolean; total?: number; entries?: { code: string; word: string }[] }>;
   /** 浏览包含内置行的全部词库；语言资源没有安装时 `available` 为假。 */
   browse?(
     offset: number,

@@ -30,6 +30,22 @@ fn pinyin(code: &str, word: &str) -> WordKey {
     WordKey::new(WordKind::Pinyin, code, word).unwrap()
 }
 
+#[test]
+fn xiaohe_personal_words_sync_without_the_bundled_table() {
+    let share = Share::new();
+    let mut first = Device::new(0xa1, Some(K1));
+    let mut second = Device::new(0xb2, Some(K1));
+    let personal = WordKey::new(WordKind::Xiaohe, "sm", "神马").unwrap();
+    first.add(&personal);
+    first.sync(&share);
+    second.sync(&share);
+    assert_eq!(second.engine.words, BTreeSet::from([personal.clone()]));
+    second.remove(&personal);
+    second.advance(1_000);
+    second.sync(&share);
+    assert!(settle(&mut [&mut first, &mut second], &share).is_empty());
+}
+
 // ---- 内存里的网盘 ----
 
 #[derive(Default)]

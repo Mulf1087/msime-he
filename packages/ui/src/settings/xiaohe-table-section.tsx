@@ -17,7 +17,20 @@ export function XiaoheTableSection({
   const [count, setCount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [code, setCode] = useState("");
+  const [word, setWord] = useState("");
+  const [personal, setPersonal] = useState<{ code: string; word: string }[]>([]);
+  const [personalTotal, setPersonalTotal] = useState(0);
+  const [personalOffset, setPersonalOffset] = useState(0);
   const request = dictionary?.xiaohe;
+  const userRequest = dictionary?.xiaoheUser;
+  const reloadPersonal = async (offset: number) => {
+    if (!userRequest) return;
+    const result = await userRequest("list", undefined, undefined, offset);
+    setPersonal(result.entries ?? []);
+    setPersonalTotal(result.total ?? 0);
+    setPersonalOffset(offset);
+  };
   useEffect(() => {
     let active = true;
     request?.()
@@ -37,6 +50,11 @@ export function XiaoheTableSection({
       active = false;
     };
   }, [request, onReady]);
+  useEffect(() => {
+    if (count && userRequest)
+      void reloadPersonal(0).catch(() => setError("无法读取个人音形词条。"));
+    // A successful import or first status read is enough to refresh the list.
+  }, [count, userRequest]);
   if (!request) return null;
   const importFile = async (file?: File) => {
     if (!file || busy) return;
@@ -81,6 +99,76 @@ export function XiaoheTableSection({
         action={() => input.current?.click()}
         label={busy ? "正在导入…" : "导入音形码表…"}
       />
+      {count !== null && count > 0 && userRequest && (
+        <>
+          <SettingsGroupNote>
+            个人词条排在原码表候选之后；通过“词库同步”可同步到另一台已安装小鹤音形码表的电脑。
+          </SettingsGroupNote>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              aria-label="音形编码"
+              placeholder="一至四码"
+              value={code}
+              maxLength={4}
+              onChange={(event) => setCode(event.target.value.toLowerCase())}
+            />
+            <input
+              aria-label="个人词条"
+              placeholder="词条"
+              value={word}
+              onChange={(event) => setWord(event.target.value)}
+            />
+            <ActionButton
+              disabled={busy || !code || !word}
+              label="添加个人词条"
+              action={() => {
+                setBusy(true);
+                setError("");
+                void userRequest("add", code, word)
+                  .then(() => {
+                    setCode("");
+                    setWord("");
+                    return reloadPersonal(0);
+                  })
+                  .catch(() => setError("添加失败，请检查编码和词条。"))
+                  .finally(() => setBusy(false));
+              }}
+            />
+          </div>
+          <SettingsGroupNote>个人词条：{personalTotal.toLocaleString()} 条</SettingsGroupNote>
+          {personal.map((entry) => (
+            <div
+              key={`${entry.code}\u0000${entry.word}`}
+              style={{ display: "flex", gap: 8, alignItems: "center" }}
+            >
+              <span>
+                {entry.code}　{entry.word}
+              </span>
+              <ActionButton
+                disabled={busy}
+                label="删除"
+                action={() => {
+                  setBusy(true);
+                  setError("");
+                  void userRequest("delete", entry.code, entry.word)
+                    .then(() => reloadPersonal(personalOffset))
+                    .catch(() => setError("删除个人词条失败。"))
+                    .finally(() => setBusy(false));
+                }}
+              />
+            </div>
+          ))}
+          {personalOffset > 0 && (
+            <ActionButton
+              label="上一页"
+              action={() => void reloadPersonal(Math.max(0, personalOffset - 100))}
+            />
+          )}
+          {personalOffset + personal.length < personalTotal && (
+            <ActionButton label="下一页" action={() => void reloadPersonal(personalOffset + 100)} />
+          )}
+        </>
+      )}
       {error && <ErrorAlert>{error}</ErrorAlert>}
     </GroupList>
   );

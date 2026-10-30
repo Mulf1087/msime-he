@@ -78,6 +78,41 @@ fn the_engine_dictionary_reads_my_words_and_writes_bounded_batches() {
     assert_eq!(local.words().unwrap().len(), 3);
 }
 
+#[test]
+fn xiaohe_webdav_adapter_syncs_only_personal_words() {
+    let root = tempfile::tempdir().unwrap();
+    let options = host_options_with_main_dictionary(root.path());
+    let engine = engine(&options);
+    let user_root = std::path::Path::new(&engine.user_data);
+    msime_engine::xiaohe::import_tsv(user_root, "# msime-xiaohe-yinxing-v1\nsm\t1\t什么\n")
+        .unwrap();
+    let mut local = EngineDictionary::new(&engine, false);
+    assert!(local.words().unwrap().is_empty());
+    let personal = WordKey::new(WordKind::Xiaohe, "sm", "神马").unwrap();
+    assert_eq!(
+        local
+            .apply(&[change(personal.clone(), true, "x1")])
+            .unwrap(),
+        vec![LocalOutcome::Applied]
+    );
+    assert_eq!(local.words().unwrap(), BTreeSet::from([personal.clone()]));
+    assert_eq!(
+        msime_engine::xiaohe::XiaoheTable::open(&user_root.join("xiaohe-yinxing.db"))
+            .unwrap()
+            .query("sm")
+            .unwrap()
+            .iter()
+            .map(|entry| entry.word.as_str())
+            .collect::<Vec<_>>(),
+        ["什么", "神马"]
+    );
+    assert_eq!(
+        local.apply(&[change(personal, false, "x2")]).unwrap(),
+        vec![LocalOutcome::Applied]
+    );
+    assert!(local.words().unwrap().is_empty());
+}
+
 /// 叫醒输入法的次数：`announce` 是 `fn()`，带不了闭包里的计数。
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 static ANNOUNCED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -348,6 +383,26 @@ fn the_journal_stamp_moves_on_every_write_but_the_fingerprint_only_when_words_ch
         "add",
     );
     assert_ne!(host.stamp().unwrap(), reweighted);
+    assert_ne!(host.fingerprint().unwrap(), words);
+}
+
+#[test]
+fn the_background_stamp_tracks_personal_xiaohe_words() {
+    let root = tempfile::tempdir().unwrap();
+    let options = host_options_with_main_dictionary(root.path());
+    let mut host = ImeHost::new(
+        runtime_options(root.path(), &options),
+        root.path().join("dictionary-sync"),
+    );
+    host.engine = Some(engine(&options));
+    let before = host.stamp().unwrap();
+    let user = std::path::PathBuf::from(&host.engine.as_ref().unwrap().user_data);
+    msime_engine::xiaohe::import_tsv(&user, "# msime-xiaohe-yinxing-v1\nsm\t1\t什么\n").unwrap();
+    let imported = host.stamp().unwrap();
+    assert_ne!(imported, before);
+    let words = host.fingerprint().unwrap();
+    msime_engine::xiaohe::edit_user_entry(&user, "sm", "神马", true).unwrap();
+    assert_ne!(host.stamp().unwrap(), imported);
     assert_ne!(host.fingerprint().unwrap(), words);
 }
 

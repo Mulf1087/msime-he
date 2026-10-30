@@ -112,7 +112,7 @@ constexpr bool WidensFullWidth(int scheme)
 }
 
 // `shows_glosses`: candidates may carry translation glosses.
-constexpr bool ShowsGlosses(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Korean; }
+constexpr bool ShowsGlosses(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi || scheme == Korean || scheme == XiaoheYinxing; }
 
 // `detects_urls`：组字中键入 `www.`、`http:` 这类触发词会进入网址模式。TIP 把全拼、双拼、五笔都记成 quanpin（mode_scheme），三者都检测网址，所以 TIP 用 InputModeScheme 判断不会看错。
 constexpr bool DetectsUrls(int scheme) { return scheme == Quanpin || scheme == Shuangpin || scheme == Wubi; }
