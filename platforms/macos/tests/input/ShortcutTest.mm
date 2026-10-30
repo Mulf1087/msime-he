@@ -4759,7 +4759,7 @@ static void TestSchemeTraitsFromView(MSIMEAppearancePreferences *appearance) {
     assert(MSIMECandidateListOpen(@{@"scheme": @6, @"candidate_list_open": @YES, @"candidates": @[@{@"text": @"中"}]}));
     assert(!MSIMECandidateListOpen(@{@"scheme": @4, @"candidates": @[@{@"text": @"韓"}]}));
     assert(!MSIMECandidateListOpen(@{@"scheme": @0, @"candidate_list_open": @NO, @"candidates": @[@{@"text": @"中"}]}));
-    // Glosses are available for pinyin, wubi, Korean Hanja, and Xiaohe; temporary Japanese keeps its own presentation.
+    // 拼音、五笔、韩文汉字与小鹤音形支持释义；临时日文模式保留自身的展示规则。
     for (NSNumber *scheme in @[@0, @1, @2, @4, @10]) assert(MSIMEViewShowsGlosses(@{@"scheme": scheme}));
     for (NSNumber *scheme in @[@3, @5, @6, @7, @8, @9, @99]) assert(!MSIMEViewShowsGlosses(@{@"scheme": scheme}));
     assert(!MSIMEViewShowsGlosses(@{@"scheme": @0, @"local_mode": @"temporary_japanese"}));

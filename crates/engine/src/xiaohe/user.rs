@@ -81,7 +81,7 @@ pub fn valid_user_entry(code: &str, word: &str) -> bool {
         && !word.chars().any(char::is_control)
 }
 
-/// Caller serializes edits with dictionary maintenance; a repeated add or delete is idempotent.
+/// 调用方通过词库维护权串行编辑；重复添加或删除均可安全重试。
 pub fn edit_user_entry(user_root: &Path, code: &str, word: &str, add: bool) -> Result<()> {
     if !valid_user_entry(code, word) {
         return Err(fail());

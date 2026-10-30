@@ -104,8 +104,7 @@ impl XiaoheTable {
         let mut entries = rows
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| fail())?;
-        // Older imported databases have no personal table. A newly created table becomes visible
-        // to an already open read-only connection on its next query.
+        // 旧版导入库没有个人词条表；新增表后，已打开的只读连接下次查询即可看见。
         if let Ok(mut users) = self
             .connection
             .prepare_cached("SELECT text FROM user_entries WHERE code=?1 ORDER BY text")

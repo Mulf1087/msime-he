@@ -53,7 +53,7 @@ export function XiaoheTableSection({
   useEffect(() => {
     if (count && userRequest)
       void reloadPersonal(0).catch(() => setError("无法读取个人音形词条。"));
-    // A successful import or first status read is enough to refresh the list.
+    // 首次状态读取或成功导入后刷新个人词条列表。
   }, [count, userRequest]);
   if (!request) return null;
   const importFile = async (file?: File) => {

@@ -7,7 +7,7 @@ use std::fmt;
 pub const MAX_CODE_BYTES: usize = 512;
 /// 词的字节上限，与 Engine 个人词库的 `MAX_VALUE_BYTES` 相同。
 pub const MAX_WORD_BYTES: usize = 4096;
-// Candidate text occupies a fixed 200-unit field, including its terminator.
+// 候选文本字段固定 200 个 UTF-16 码元，其中一个留给结尾符。
 const XIAOHE_CANDIDATE_TEXT_CAPACITY: usize = 200;
 
 /// 词库类别，名字与 Engine 日志里的 `dictionary` 列相同。按名字的字母顺序排列，词条因此有确定的顺序。
