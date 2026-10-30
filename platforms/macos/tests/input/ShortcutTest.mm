@@ -4759,8 +4759,8 @@ static void TestSchemeTraitsFromView(MSIMEAppearancePreferences *appearance) {
     assert(MSIMECandidateListOpen(@{@"scheme": @6, @"candidate_list_open": @YES, @"candidates": @[@{@"text": @"中"}]}));
     assert(!MSIMECandidateListOpen(@{@"scheme": @4, @"candidates": @[@{@"text": @"韓"}]}));
     assert(!MSIMECandidateListOpen(@{@"scheme": @0, @"candidate_list_open": @NO, @"candidates": @[@{@"text": @"中"}]}));
-    // Glosses: the three Chinese schemes that always had them, not temporary Japanese inside them, and none of the schemes after them. A view without a scheme is quanpin.
-    for (NSNumber *scheme in @[@0, @1, @2, @4]) assert(MSIMEViewShowsGlosses(@{@"scheme": scheme}));
+    // Glosses are available for pinyin, wubi, Korean Hanja, and Xiaohe; temporary Japanese keeps its own presentation.
+    for (NSNumber *scheme in @[@0, @1, @2, @4, @10]) assert(MSIMEViewShowsGlosses(@{@"scheme": scheme}));
     for (NSNumber *scheme in @[@3, @5, @6, @7, @8, @9, @99]) assert(!MSIMEViewShowsGlosses(@{@"scheme": scheme}));
     assert(!MSIMEViewShowsGlosses(@{@"scheme": @0, @"local_mode": @"temporary_japanese"}));
     assert(MSIMEViewShowsGlosses(@{}));

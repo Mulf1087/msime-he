@@ -26,7 +26,7 @@ constexpr Row Expected[] = {
     {true, true, false, false, false, false, false, true, true, false, true},     // 7 vietnamese
     {true, true, false, false, false, false, false, true, true, false, true},     // 8 tibetan
     {false, false, true, true, true, false, false, false, false, false, false},   // 9 stroke
-    {true, true, true, false, true, false, false, false, false, false, false}, // 10 小鹤音形
+    {true, true, true, false, true, true, false, false, false, false, false}, // 10 小鹤音形
     {false, false, false, false, false, false, false, false, false, false, false} // unknown
 };
 
