@@ -183,6 +183,11 @@ notary_result() {
 # 带安全时间戳的 codesign。时间戳要现场向 Apple 的时间戳服务器取，服务器偶尔会回 "The timestamp service is not available."，这时重试即可，不能让一次抖动白白废掉整次发版（2026-10-05 的 Release macOS 就是在 wubi 版签名时这样失败的）。其他错误不是抖动，原样失败。
 codesign_timestamped() {
   local attempt output
+  # 本地开发证书不用于公证；明确跳过时间戳服务，仍由后续严格校验检查签名。
+  if [[ "$identity" == "Apple Development:"* ]]; then
+    codesign --timestamp=none "$@"
+    return
+  fi
   for attempt in 1 2 3 4 5; do
     if output="$(codesign --timestamp "$@" 2>&1)"; then
       [ -z "$output" ] || printf '%s\n' "$output"
@@ -201,7 +206,7 @@ codesign_timestamped() {
   return 1
 }
 
-# codesign for one path. A Developer ID signature carries a secure timestamp, which notarization requires; an ad-hoc signature cannot carry one.
+# 为单个路径签名。Developer ID 公证需要安全时间戳；临时签名无法带时间戳。
 sign() {
   if [ -n "$identity" ]; then
     codesign_timestamped --force --options runtime --sign "$identity" "$@"
@@ -445,6 +450,12 @@ for table in character-glosses word-glosses pronunciations; do
   fi
 done
 # --deep, as scripts/install.sh does: Sparkle arrives signed by its publisher, and under the hardened runtime a process cannot load a library whose Team ID differs from its own. The entitlements carry microphone access for voice input.
+# Swift 后端和本地语音库可能带有构建时的临时签名；先逐个重签，避免外层签名后严格校验仍读到无时间戳的内嵌库。
+sign "$staged_bundle/Contents/Frameworks/MSIMEBackend.dylib"
+if [ "$omit_voice_runtime" != 1 ]; then
+  sign "$staged_bundle/Contents/Frameworks/libsherpa-onnx-c-api.dylib"
+fi
+sign "$staged_bundle/Contents/MacOS/msime-voice-local"
 if [ -n "$identity" ]; then
   codesign_timestamped --force --deep --options runtime --entitlements "$entitlements" --sign "$identity" "$staged_bundle"
 else
