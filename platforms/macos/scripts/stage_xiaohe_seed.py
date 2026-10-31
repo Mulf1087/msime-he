@@ -42,7 +42,10 @@ def stage(source: Path, resources: Path) -> None:
             raise ValueError("生成的音形表过大")
         manifest = {"format_version": 1, "sha256": hashlib.sha256(payload).hexdigest(),
                     "size": len(payload), "entries": len(rows), "default_scheme": "xiaohe_yinxing"}
-        os.replace(name, seed / "xiaohe-yinxing.db")
+        staged_db = seed / "xiaohe-yinxing.db"
+        os.replace(name, staged_db)
+        # 系统安装会把文件归 root 所有；输入法以普通用户身份读取这份公开码表。
+        os.chmod(staged_db, 0o644)
         (seed / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
         (seed / "使用说明.txt").write_text("个人小鹤音形定制码表。首次安装默认小鹤音形；重装仅补缺表，不覆盖用户已有码表和偏好。码表来自用户提供及授权整合的本地数据，未包含账号、密钥或历史输入。\n")
     finally:

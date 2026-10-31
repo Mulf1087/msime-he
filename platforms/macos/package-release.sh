@@ -627,6 +627,11 @@ check_app() {
   fi
   local nested
   nested="$(only "$resources_dir"/*.app)"
+  if [ "$edition" = full ] && [ -n "${MSIME_XIAOHE_SEED:-}" ]; then
+    # 系统安装后所有者会变为 root；两份随包码表都必须允许普通用户读取。
+    test "$(stat -f %Lp "$resources_dir/xiaohe-yinxing/xiaohe-yinxing.db")" = 644
+    test "$(stat -f %Lp "$nested/Contents/Resources/xiaohe-yinxing/xiaohe-yinxing.db")" = 644
+  fi
   if [ -d "$pronunciations" ]; then
     test -f "$nested/Contents/Resources/pronunciations/en-phonetic.db"
     test -f "$nested/Contents/Resources/pronunciations/pronunciations-NOTICE.txt"
